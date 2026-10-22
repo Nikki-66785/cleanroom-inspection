@@ -1071,6 +1071,7 @@ function authGuard() {
     AUTH.user = u || null;
     AUTH.on = !u;
     renderLogin();
+    if (u) afterLogin(u, true);
     return Promise.resolve(!!u);
   }
   const auth = typeof app.auth === 'function' ? app.auth() : app.auth;
@@ -1078,6 +1079,7 @@ function authGuard() {
     AUTH.user = u;
     AUTH.on = !u;
     renderLogin();
+    if (u) afterLogin(u, true);   // 会话恢复也要投递身份 + 应用权限绑定（静默，不弹「登录成功」）
     return !!u;
   };
   // 优先 getSession（新规范，未登录时 session 为空）→ getCurrentUser → getLoginState（旧版）
@@ -1206,8 +1208,9 @@ function applyRoleBinding(u) {
   }
   return DEFAULT_ROLE;
 }
-function afterLogin(u) {
+function afterLogin(u, quiet) {
   // 登录成功：把 CloudBase 用户身份投到「我的」页展示
+  if (!u) return;
   CLOUD.user = {
     id: u.id || u.uid || (u.user_metadata && u.user_metadata.id) || '',
     username: u.username || (u.user_metadata && u.user_metadata.username) || '',
@@ -1216,12 +1219,14 @@ function afterLogin(u) {
     email: u.email || (u.user_metadata && u.user_metadata.email) || ''
   };
   // 权限绑定：按云端绑定表确定角色，未绑定账号为只读预览
+  const roleChanged = S.role !== applyRoleBinding(u);
   S.role = applyRoleBinding(u);
   persist();
-  toast(S.role === DEFAULT_ROLE ? '登录成功（未分配权限，当前只读预览）'
+  if (!quiet) toast(S.role === DEFAULT_ROLE ? '登录成功（未分配权限，当前只读预览）'
     : `登录成功，已绑定角色：${ROLES[S.role].name}`);
+  else if (roleChanged) toast(`已按账号绑定切换角色：${ROLES[S.role].name}`);
   // 登录前 cloudInit 已因未认证而降级本地模式，登录成功后重新连接云端
-  if (CLOUD_DB.env && !CLOUD.on) cloudInit().then(on => { if (on) render(); });
+  if (CLOUD_DB.env && !CLOUD.on && !CLOUD.timer) cloudInit().then(on => { if (on) render(); });
   render();
 }
 
