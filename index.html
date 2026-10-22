@@ -864,7 +864,13 @@ function authApp() {
    密码登录 auth.signIn({ username, password })
    登录态 auth.getCurrentUser() / auth.getLoginState()（视版本可用） */
 const phoneE164 = s => { s = String(s || '').trim(); return /^\+/.test(s) ? s : ('+86 ' + s); };
-const loginStateUser = ls => (ls && (ls.user || (ls.loginState && ls.loginState.user))) || null;
+const loginStateUser = ls => {
+  if (!ls) return null;
+  if (ls.user) return ls.user;
+  if (ls.loginState && ls.loginState.user) return ls.loginState.user;
+  if (ls.data && ls.data.user) return ls.data.user;   // signInWithPassword 返回 { data: { user, session } }
+  return null;
+};
 function loginHTML() {
   const m = AUTH.mode;
   return `
@@ -913,11 +919,18 @@ function authGuard() {
     renderLogin();
     return !!u;
   };
-  // 优先 getCurrentUser（Web v2），回退 getLoginState（旧版）
-  const probe = auth.getCurrentUser
-    ? auth.getCurrentUser().then(u => u || null).catch(() => null)
-    : (auth.getLoginState ? auth.getLoginState() : Promise.resolve(null))
-        .then(s => (s && s.user) || null).catch(() => null);
+  // 优先 getSession（新规范，未登录时 session 为空）→ getCurrentUser → getLoginState（旧版）
+  const pickUser = res => {
+    if (!res) return null;
+    if (res.data) return res.data.user || (res.data.session ? res.data : null);
+    return res.user || (res.uid ? res : null);
+  };
+  const probe = auth.getSession
+    ? auth.getSession().then(r => pickUser(r)).catch(() => null)
+    : (auth.getCurrentUser
+        ? auth.getCurrentUser().then(u => u || null).catch(() => null)
+        : (auth.getLoginState ? auth.getLoginState() : Promise.resolve(null))
+            .then(s => (s && s.user) || null).catch(() => null));
   return probe.then(u => finish(u || null));
 }
 function loginSend() {
@@ -928,8 +941,12 @@ function loginSend() {
   const auth = app.auth();
   const m = AUTH.mode;
   AUTH.sending = true; AUTH.err = ''; renderLogin();
+  const pwdUser = m === 'phone' ? phoneE164(acc.trim()) : acc.trim();
+  const pwdVal = (document.querySelector('[data-lf="password"]') || {}).value;
   const p = m === 'pwd'
-    ? auth.signIn({ username: m === 'phone' ? phoneE164(acc.trim()) : acc.trim(), password: (document.querySelector('[data-lf="password"]') || {}).value })
+    ? (auth.signInWithPassword
+        ? auth.signInWithPassword({ username: pwdUser, password: pwdVal })   // Web v2 规范接口
+        : auth.signIn({ username: pwdUser, password: pwdVal }))              // 旧版回退
     : auth.getVerification(m === 'phone' ? { phone_number: phoneE164(acc.trim()) } : { email: acc.trim() });
   p.then(r => {
     if (m === 'pwd') return doFinishLogin(r);
