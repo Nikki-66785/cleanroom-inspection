@@ -1054,6 +1054,8 @@ function afterLogin(u) {
     email: u.email || (u.user_metadata && u.user_metadata.email) || ''
   };
   toast('登录成功');
+  // 登录前 cloudInit 已因未认证而降级本地模式，登录成功后重新连接云端
+  if (CLOUD_DB.env && !CLOUD.on) cloudInit().then(on => { if (on) render(); });
   render();
 }
 
