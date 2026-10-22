@@ -681,6 +681,7 @@ function tryHttpBackend() {
 function applyCloudData(data) {
   S.data = data;
   if (!S.data.accounts) S.data.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+  if (!S.data.roleBindings) S.data.roleBindings = { 'shunchao_zhang': 'compliance' };
   if (!S.data.roleLog) S.data.roleLog = [];
   if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
   try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { /* 本地缓存失败可忽略 */ }
@@ -858,6 +859,7 @@ function seed() {
   return {
     workshops, tasks, findings,
     accounts: JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS)),
+    roleBindings: { 'shunchao_zhang': 'compliance' },
     roleLog: [],
     settings: { freq: 1, replyDays: 7 },
     drafts: { find: null, reply: {} },
@@ -1046,6 +1048,17 @@ function loginSubmit() {
     .catch(e => { console.error('[登录-验证码] 完整错误：', e); AUTH.err = fmtAuthErr(e, '验证失败，请核对验证码'); })
     .finally(() => { AUTH.sending = false; renderLogin(); });
 }
+/* 把 CloudBase 登录身份（用户名 / 邮箱 / 手机号）匹配到系统角色绑定表；未绑定 → 只读预览 */
+function applyRoleBinding(u) {
+  const um = u.user_metadata || {};
+  const ids = [u.username, u.name, u.email, u.phone, um.username, um.name, um.email, um.phone]
+    .map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+  const rb = D().roleBindings || {};
+  for (let i = 0; i < ids.length; i++) {
+    if (rb[ids[i]] && ROLES[rb[ids[i]]]) return rb[ids[i]];
+  }
+  return DEFAULT_ROLE;
+}
 function afterLogin(u) {
   // 登录成功：把 CloudBase 用户身份投到「我的」页展示
   CLOUD.user = {
@@ -1053,7 +1066,11 @@ function afterLogin(u) {
     phone: u.phone || (u.user_metadata && u.user_metadata.phone) || '',
     email: u.email || (u.user_metadata && u.user_metadata.email) || ''
   };
-  toast('登录成功');
+  // 权限绑定：按云端绑定表确定角色，未绑定账号为只读预览
+  S.role = applyRoleBinding(u);
+  persist();
+  toast(S.role === DEFAULT_ROLE ? '登录成功（未分配权限，当前只读预览）'
+    : `登录成功，已绑定角色：${ROLES[S.role].name}`);
   // 登录前 cloudInit 已因未认证而降级本地模式，登录成功后重新连接云端
   if (CLOUD_DB.env && !CLOUD.on) cloudInit().then(on => { if (on) render(); });
   render();
@@ -1064,6 +1081,7 @@ function boot() {
   S.data = stored || seed();
   // 兼容旧版本本地数据：补齐账号表与变更日志
   if (!S.data.accounts) S.data.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+  if (!S.data.roleBindings) S.data.roleBindings = { 'shunchao_zhang': 'compliance' };
   if (!S.data.roleLog) S.data.roleLog = [];
   if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
   if (!stored) persist();
@@ -2135,6 +2153,39 @@ function renderConfig() {
   }).join('')}
   <button class="btn btn-line" style="width:100%;margin-top:4px" data-act="addWs">+ 新增车间</button>
 
+  ${S.role === 'compliance' ? `
+  <div class="sec-title"><h3>账号权限绑定</h3><span>CloudBase 登录账号 → 系统角色</span></div>
+  <div class="card" style="padding:4px 14px">
+    ${Object.keys(D().roleBindings || {}).length ? Object.keys(D().roleBindings).map(k => {
+      const rk = D().roleBindings[k];
+      return `
+      <div class="cfg-row">
+        <div>
+          <div style="font-size:13px;font-weight:600;word-break:break-all">${esc(k)}</div>
+          <div class="tiny" style="margin-top:2px">${ROLES[rk] ? ROLES[rk].name : '未知角色'} · 未绑定账号登录后为只读预览</div>
+        </div>
+        <div class="row" style="gap:6px">
+          <select data-act="bindSet" data-id="${esc(k)}" style="border:1px solid #E1E8EC;border-radius:8px;padding:5px 6px;font-size:12px;background:#fff;color:var(--ink)">
+            ${Object.keys(ROLES).map(r => `<option value="${r}" ${r === rk ? 'selected' : ''}>${ROLES[r].name}</option>`).join('')}
+          </select>
+          <button class="btn btn-line btn-sm" style="padding:4px 8px;font-size:10.5px;color:var(--red)"
+            data-act="bindDel" data-id="${esc(k)}">删</button>
+        </div>
+      </div>`;
+    }).join('') : '<div class="tiny" style="padding:10px 0">暂无绑定：所有登录账号均为只读预览</div>'}
+    <div class="cfg-row" style="flex-wrap:wrap;gap:8px">
+      <input data-bind="login" placeholder="登录账号（用户名 / 邮箱 / 手机号）"
+        style="flex:1;min-width:150px;border:1px solid #E1E8EC;border-radius:8px;padding:8px 10px;font-size:12.5px" />
+      <select data-bind="role" style="border:1px solid #E1E8EC;border-radius:8px;padding:8px 6px;font-size:12px;background:#fff;color:var(--ink)">
+        ${Object.keys(ROLES).map(r => `<option value="${r}" ${r === DEFAULT_ROLE ? 'selected' : ''}>${ROLES[r].name}</option>`).join('')}
+      </select>
+      <button class="btn btn-pri btn-sm" style="padding:7px 14px" data-act="bindAdd">绑定</button>
+    </div>
+    <div class="tiny" style="padding:6px 0 10px;line-height:1.6">
+      绑定保存到云端共享数据，任何设备登录即刻生效；修改绑定后需重新登录刷新角色。
+    </div>
+  </div>` : ''}
+
   <div class="sec-title"><h3>任务生成</h3><span></span></div>
   <div class="card">
     <div class="tiny" style="line-height:1.7;margin-bottom:10px">
@@ -2931,7 +2982,9 @@ document.addEventListener('click', e => {
   if (!t) return;
   const act = t.dataset.act;
   const d = S.sheet ? S.sheet.draft : null;
-
+  handleAction(act, t, d);
+});
+function handleAction(act, t, d) {
   switch (act) {
     case 'tab': S.page = t.dataset.p; S.sub = {}; S.filter = 'all'; render(); break;
     case 'back': {
@@ -3213,6 +3266,31 @@ document.addEventListener('click', e => {
       if (!can('manageRole')) { toast('无权查看'); break; }
       openSheet({ type: 'roleLog' });
       break;
+    case 'bindAdd': {
+      if (S.role !== 'compliance') { toast('仅合规管理可调整权限绑定'); break; }
+      const inp = document.querySelector('[data-bind="login"]');
+      const sel = document.querySelector('[data-bind="role"]');
+      const login = String((inp && inp.value) || '').trim().toLowerCase();
+      if (!login) { toast('请填写登录账号'); break; }
+      D().roleBindings = D().roleBindings || {};
+      if (D().roleBindings[login]) { toast('该账号已存在绑定'); break; }
+      D().roleBindings[login] = sel ? sel.value : DEFAULT_ROLE;
+      D().roleLog.push({ at: `${todayStr()} ${timeStr(new Date())}`, by: me().name, who: login,
+        note: `绑定登录账号权限：${ROLES[D().roleBindings[login]].name}` });
+      persist(); render();
+      toast('已绑定：' + login + ' → ' + ROLES[D().roleBindings[login]].name);
+      break;
+    }
+    case 'bindDel': {
+      if (S.role !== 'compliance') { toast('仅合规管理可调整权限绑定'); break; }
+      const k = t.dataset.id;
+      if (!k || !D().roleBindings || !D().roleBindings[k]) break;
+      delete D().roleBindings[k];
+      D().roleLog.push({ at: `${todayStr()} ${timeStr(new Date())}`, by: me().name, who: k, note: '解除登录账号权限绑定' });
+      persist(); render();
+      toast('已解除绑定（该账号下次登录为只读预览）');
+      break;
+    }
     case 'toggleWs':
       S.sub.openWs = S.sub.openWs === t.dataset.id ? null : t.dataset.id;
       render(); break;
@@ -3398,7 +3476,7 @@ document.addEventListener('click', e => {
       toast('演示数据已重置');
       break;
   }
-});
+}
 
 /* 输入同步 */
 document.addEventListener('input', e => {
@@ -3733,7 +3811,8 @@ window.__t = {
   rangeBounds, rangeData, rangeLabel, deleteImpact, doDeleteRange, exportExcel, RANGES,
   doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll,
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSend, loginSubmit, doFinishLogin,
-  dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData
+  dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData,
+  applyRoleBinding, afterLogin, handleAction
 };
 </script>
 </body>
