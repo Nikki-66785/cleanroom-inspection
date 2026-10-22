@@ -970,9 +970,10 @@ function loginSend() {
   AUTH.info = { account: acc.trim(), sent: false };
   const auth = authObj();
   const m = AUTH.mode;
-  AUTH.sending = true; AUTH.err = ''; renderLogin();
+  // 先读输入值再重绘（renderLogin 会替换 DOM，重绘后读到的是空输入框）
   const pwdUser = m === 'phone' ? phoneE164(acc.trim()) : acc.trim();
   const pwdVal = (document.querySelector('[data-lf="password"]') || {}).value;
+  AUTH.sending = true; AUTH.err = ''; renderLogin();
   const p = m === 'pwd'
     ? (auth.signInWithPassword
         ? auth.signInWithPassword({ username: pwdUser, password: pwdVal })            // v3 新版身份认证
