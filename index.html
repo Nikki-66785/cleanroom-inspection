@@ -298,6 +298,37 @@ body{
   border-radius:10px;opacity:0;pointer-events:none;transition:all .22s;max-width:82%;text-align:center;
   line-height:1.5}
 #toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* 登录门禁 */
+#login{position:absolute;inset:0;z-index:120;display:none}
+#login:has(.login-mask){display:block}
+.login-mask{position:absolute;inset:0;background:linear-gradient(160deg,#0F8378 0%,#0B6A61 42%,#F3F6F8 42%,#F3F6F8 100%);
+  display:flex;align-items:center;justify-content:center;padding:20px 18px}
+.login-card{width:100%;max-width:340px;background:#fff;border-radius:18px;padding:22px 20px 18px;
+  box-shadow:0 18px 44px rgba(10,40,36,.22)}
+.login-logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#0F8378,#18A795);
+  color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.login-title{font-size:16px;font-weight:700;text-align:center;margin-top:11px}
+.login-sub{font-size:11px;color:var(--ink3);text-align:center;margin-top:5px;line-height:1.6}
+.login-tabs{display:flex;gap:4px;background:#F1F5F7;border-radius:9px;padding:3px;margin:15px 0 13px}
+.login-tabs button{flex:1;border:none;background:transparent;font-family:inherit;font-size:11px;font-weight:600;
+  color:var(--ink2);padding:7px 2px;border-radius:7px;cursor:pointer;transition:all .15s}
+.login-tabs button.on{background:#fff;color:var(--pri);box-shadow:0 1px 4px rgba(15,30,40,.1)}
+.login-card .fld{margin-bottom:11px}
+.login-card .fld label{font-size:11.5px;font-weight:650;color:var(--ink2);display:block;margin-bottom:5px}
+.login-card .fld input{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 11px;
+  font-size:13px;font-family:inherit;color:var(--ink);outline:none;transition:border-color .15s}
+.login-card .fld input:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(15,131,120,.1)}
+.login-err{font-size:11.5px;color:var(--red);background:var(--red-l);border-radius:8px;padding:8px 10px;
+  margin-bottom:10px;line-height:1.5}
+.login-btn{width:100%;border:none;border-radius:10px;background:var(--pri);color:#fff;font-size:13.5px;
+  font-weight:650;padding:12px;font-family:inherit;cursor:pointer;transition:background .15s}
+.login-btn:hover{background:var(--pri-d)}
+.login-btn:disabled{opacity:.6;cursor:not-allowed}
+.login-foot{font-size:10px;color:var(--ink3);text-align:center;margin-top:13px;line-height:1.7}
+@media (min-width:821px) and (max-width:1366px){
+  .login-card{max-width:400px;padding:28px 26px 22px}
+}
 </style>
 </head>
 <body data-page-node-id="YqYjSoj4jINAkxzZdu9YVW">
@@ -315,8 +346,11 @@ body{
   <div id="tabbar" data-page-node-id="5uq1k3ieSWKaPZI7anCVaY"></div>
   <div id="sheet" data-page-node-id="BOA07ALc8nSjot9CTrfDhi"></div>
   <div id="toast" data-page-node-id="4ea5PT1vPF9LjPuuBuh6JI"></div>
+  <div id="login" data-page-node-id="lgnLayer01"></div>
 </div>
 
+<!-- CloudBase Web SDK（仅在使用文档型数据库模式时加载生效） -->
+<script src="https://static.cloudbase.net/cloudbase-js-sdk/2.17.5/cloudbase.full.js"></script>
 <script>
 /* ============================================================
    洁净车间巡检管理系统（多角色）
@@ -537,65 +571,125 @@ const me = () => STAFF[S.role];
 const month = () => monthStr();
 
 /* ---------- 存储 ---------- */
-/* 云端同步（上线测试模式）：同一链接的所有用户共享一份数据
-   - /api/data GET 拉取 { rev, data }，POST 带 rev 乐观锁提交，冲突时以服务端为准
-   - file:// 或接口不可用时自动降级为本地模式（仅存本机 localStorage） */
-const CLOUD = { on: false, rev: 0, pushing: false, pending: false, timer: null, err: false };
+/* 云端同步：多人共享同一份数据
+   - 模式 A（文档型数据库）：配置 CLOUD_DB.env 后，用 @cloudbase/js-sdk 连 CloudBase 文档数据库
+     集合 app_state / 文档 main，需在 CloudBase 安全域名中加入本页域名
+   - 模式 B（同步服务）：无 env 配置时，走 /api/data（云托管 Node 服务或内网自建服务）
+   - 两者都不可用（file:// 或网络失败）时降级为本地模式，仅存本机 localStorage */
+const CLOUD_DB = {
+  env: 'cleanroom-3gk2-0dggge34t19e49fd3',  // CloudBase 环境 ID（已配置）
+  region: 'ap-shanghai',
+  accessKey: '',           // Publishable Key（匿名/自定义登录场景可选）
+  collection: 'app_state',
+  docId: 'main',
+  app: null, db: null
+};
+const CLOUD = { on: false, mode: '', rev: 0, pushing: false, pending: false, timer: null, err: false, user: null };
 function persist() {
   try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { console.warn('存储失败', e); }
   if (CLOUD.on) cloudPush();
 }
+
+/* ---------- 文档型数据库适配层 ---------- */
+function dbReady() {
+  if (CLOUD_DB.db) return Promise.resolve(CLOUD_DB.db);
+  if (!CLOUD_DB.env) return Promise.reject(new Error('no env'));
+  if (!window.cloudbase) return Promise.reject(new Error('sdk missing'));
+  CLOUD_DB.app = window.cloudbase.init({
+    env: CLOUD_DB.env, region: CLOUD_DB.region,
+    ...(CLOUD_DB.accessKey ? { accessKey: CLOUD_DB.accessKey } : {})
+  });
+  CLOUD_DB.db = CLOUD_DB.app.database();
+  return Promise.resolve(CLOUD_DB.db);
+}
+function dbLoad() {
+  return dbReady().then(db => db.collection(CLOUD_DB.collection).doc(CLOUD_DB.docId).get())
+    .then(r => {
+      const d = r && r.data && (r.data[0] || r.data);
+      if (d && typeof d.rev === 'number') return { rev: d.rev, data: d.data || null };
+      return { rev: 0, data: null };
+    });
+}
+function dbSave(rev, data) {
+  return dbReady().then(db => db.collection(CLOUD_DB.collection).doc(CLOUD_DB.docId)
+    .set({ rev, data, updatedAt: new Date().toISOString() }))
+    .then(() => ({ rev, data }));
+}
+
 function cloudInit() {
+  // 优先文档型数据库；失败再试同步服务；都失败则本地模式
+  return tryDbBackend().then(ok => ok ? true : tryHttpBackend()).catch(() => tryHttpBackend());
+}
+function tryDbBackend() {
+  if (!CLOUD_DB.env) return Promise.resolve(false);
+  return dbLoad().then(j => {
+    CLOUD.on = true; CLOUD.mode = 'db'; CLOUD.rev = j.rev;
+    if (!j.data || !Array.isArray(j.data.workshops) || !j.data.workshops.length) {
+      // 数据库尚无数据 → 用种子数据初始化
+      return cloudPush().then(() => { CLOUD.timer = setInterval(cloudPoll, 4000); return true; });
+    }
+    applyCloudData(j.data);
+    CLOUD.timer = setInterval(cloudPoll, 4000);
+    return true;
+  }).catch(e => { console.warn('文档型数据库不可用：', e && e.message); return false; });
+}
+function tryHttpBackend() {
   if (typeof fetch !== 'function' || !/^https?:$/.test(location.protocol)) return Promise.resolve(false);
   return fetch('/api/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(j => {
-      // 服务端尚无有效数据（首次上线）→ 用本地种子数据初始化服务端
-      if (!j || typeof j.rev !== 'number' || !j.data
-        || !Array.isArray(j.data.workshops) || !j.data.workshops.length) {
-        CLOUD.on = true; CLOUD.rev = j && typeof j.rev === 'number' ? j.rev : 0;
-        persist();
-        CLOUD.timer = setInterval(cloudPoll, 4000);
-        return true;
+      if (!j || typeof j.rev !== 'number') return false;
+      CLOUD.on = true; CLOUD.mode = 'http'; CLOUD.rev = j.rev;
+      if (!j.data || !Array.isArray(j.data.workshops) || !j.data.workshops.length) {
+        return cloudPush().then(() => { CLOUD.timer = setInterval(cloudPoll, 4000); return true; });
       }
-      CLOUD.on = true; CLOUD.rev = j.rev;
-      S.data = j.data;
-      if (!S.data.accounts) S.data.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
-      if (!S.data.roleLog) S.data.roleLog = [];
-      if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
-      try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { /* 本地缓存失败可忽略 */ }
+      applyCloudData(j.data);
       CLOUD.timer = setInterval(cloudPoll, 4000);
       return true;
     })
     .catch(() => false);
 }
+function applyCloudData(data) {
+  S.data = data;
+  if (!S.data.accounts) S.data.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+  if (!S.data.roleLog) S.data.roleLog = [];
+  if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
+  try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { /* 本地缓存失败可忽略 */ }
+}
+
 function cloudPush() {
-  if (CLOUD.pushing) { CLOUD.pending = true; return; }
+  if (!CLOUD.on) return Promise.resolve(false);
+  if (CLOUD.pushing) { CLOUD.pending = true; return Promise.resolve(false); }
   CLOUD.pushing = true;
-  fetch('/api/data', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rev: CLOUD.rev, data: D() })
-  }).then(r => r.json().then(j => ({ ok: r.ok, j }))).then(({ ok, j }) => {
-    if (ok && typeof j.rev === 'number') { CLOUD.rev = j.rev; CLOUD.err = false; }
-    else if (j && typeof j.rev === 'number' && j.data) {
+  const nextRev = CLOUD.rev + 1;
+  const send = CLOUD.mode === 'db'
+    ? dbSave(nextRev, D()).then(() => ({ ok: true }))
+    : fetch('/api/data', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rev: CLOUD.rev, data: D() })
+      }).then(r => r.json().then(j => ({ ok: r.ok, j })));
+  return send.then(res => {
+    if (res.ok) { CLOUD.rev = nextRev; CLOUD.err = false; return true; }
+    if (res.j && typeof res.j.rev === 'number' && res.j.data) {
       // 冲突（他人已先提交）：以服务端最新版本为准
-      CLOUD.rev = j.rev; S.data = j.data;
-      if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
+      CLOUD.rev = res.j.rev; applyCloudData(res.j.data);
       toast('数据已被其他用户更新，已同步到最新版本');
       render();
     }
-  }).catch(() => { CLOUD.err = true; })
+    return false;
+  }).catch(() => { CLOUD.err = true; return false; })
     .finally(() => { CLOUD.pushing = false; if (CLOUD.pending) { CLOUD.pending = false; cloudPush(); } });
 }
+
 function cloudPoll() {
   if (!CLOUD.on || CLOUD.pushing) return;
-  fetch('/api/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
-    .then(j => {
-      if (j && typeof j.rev === 'number' && j.rev !== CLOUD.rev && j.data) {
-        CLOUD.rev = j.rev; S.data = j.data;
-        if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
-        render();
-      }
-    }).catch(() => { /* 下一次轮询重试 */ });
+  const pull = CLOUD.mode === 'db' ? dbLoad()
+    : fetch('/api/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status));
+  pull.then(j => {
+    if (j && typeof j.rev === 'number' && j.rev !== CLOUD.rev && j.data) {
+      CLOUD.rev = j.rev; applyCloudData(j.data);
+      render();
+    }
+  }).catch(() => { /* 下一次轮询重试 */ });
 }
 function restore() {
   try {
@@ -742,6 +836,127 @@ function seed() {
 }
 
 /* ---------- 初始化 ---------- */
+/* ============================================================
+   登录门禁（CloudBase 用户管理）
+   - 配置了 CLOUD_DB.env 时启用：未登录先显示登录页（手机验证码 / 邮箱验证码 / 用户名密码）
+   - 未配置 env（本地 file:// 或内网体验）时不拦截，沿用角色切换
+   ============================================================ */
+const AUTH = { app: null, on: false, user: null, mode: 'phone', sending: false, info: null, err: '' };
+function authEnabled() { return !!CLOUD_DB.env && !!window.cloudbase; }
+function authApp() {
+  if (!AUTH.app && authEnabled()) {
+    AUTH.app = CLOUD_DB.app || window.cloudbase.init({
+      env: CLOUD_DB.env, region: CLOUD_DB.region,
+      ...(CLOUD_DB.accessKey ? { accessKey: CLOUD_DB.accessKey } : {})
+    });
+  }
+  return AUTH.app;
+}
+function loginHTML() {
+  const m = AUTH.mode;
+  return `
+  <div class="login-mask">
+    <div class="login-card">
+      <div class="login-logo">净</div>
+      <div class="login-title">洁净车间巡检系统</div>
+      <div class="login-sub">请使用企业账号登录后使用</div>
+      <div class="login-tabs">
+        <button class="${m === 'phone' ? 'on' : ''}" data-act="loginMode" data-m="phone">手机验证码</button>
+        <button class="${m === 'email' ? 'on' : ''}" data-act="loginMode" data-m="email">邮箱验证码</button>
+        <button class="${m === 'pwd' ? 'on' : ''}" data-act="loginMode" data-m="pwd">账号密码</button>
+      </div>
+      ${m === 'pwd' ? `
+        <div class="fld"><label>账号</label>
+          <input type="text" data-lf="account" value="${esc(AUTH.info ? AUTH.info.account || '' : '')}" placeholder="用户名 / 邮箱 / 手机号" autocomplete="username"></div>
+        <div class="fld"><label>密码</label>
+          <input type="password" data-lf="password" placeholder="请输入密码" autocomplete="current-password"></div>` : `
+        <div class="fld"><label>${m === 'phone' ? '手机号' : '邮箱'}</label>
+          <input type="text" data-lf="account" value="${esc(AUTH.info ? AUTH.info.account || '' : '')}"
+            placeholder="${m === 'phone' ? '请输入手机号' : '请输入邮箱地址'}" autocomplete="username"></div>
+        ${AUTH.info && AUTH.info.sent ? `
+        <div class="fld"><label>验证码</label>
+          <input type="text" data-lf="code" placeholder="请输入验证码" maxlength="6" inputmode="numeric"></div>` : ''}`}
+      ${AUTH.err ? `<div class="login-err">${esc(AUTH.err)}</div>` : ''}
+      <button class="login-btn" data-act="${AUTH.info && (AUTH.info.sent || m === 'pwd') ? 'loginSubmit' : 'loginSend'}" ${AUTH.sending ? 'disabled' : ''}>
+        ${AUTH.sending ? '处理中…' : (m === 'pwd' ? '登录' : (AUTH.info && AUTH.info.sent ? '登录' : '获取验证码'))}</button>
+      <div class="login-foot">登录即代表同意内部数据使用规范<br>账号由腾讯云开发用户管理统一认证</div>
+    </div>
+  </div>`;
+}
+function renderLogin() {
+  const box = el('login');
+  if (!box) return;
+  if (!AUTH.on) { box.innerHTML = ''; return; }
+  box.innerHTML = loginHTML();
+}
+function authGuard() {
+  if (!authEnabled()) { AUTH.on = false; AUTH.user = null; renderLogin(); return Promise.resolve(false); }
+  AUTH.on = true; renderLogin();
+  const app = authApp();
+  const finish = u => {
+    AUTH.user = u;
+    AUTH.on = !u;
+    renderLogin();
+    return !!u;
+  };
+  return app.auth.getLoginState()
+    .then(state => {
+      const u = state && (state.user || (state.data && state.data.user)) || null;
+      if (u) return finish(u);
+      // 兼容不同 sdk 返回结构：无用户则认为未登录
+      const cur = app.auth.currentUser;
+      return finish(cur || null);
+    })
+    .catch(() => finish(null));
+}
+function loginSend() {
+  const acc = (document.querySelector('[data-lf="account"]') || {}).value;
+  if (!String(acc || '').trim()) { AUTH.err = CLOUD_DB.env ? '请填写账号' : '请填写账号'; renderLogin(); return; }
+  AUTH.info = { account: acc.trim(), sent: false };
+  const app = authApp();
+  const m = AUTH.mode;
+  AUTH.sending = true; AUTH.err = ''; renderLogin();
+  const p = m === 'pwd'
+    ? app.auth.signInWithPassword({ username: acc.trim(), password: (document.querySelector('[data-lf="password"]') || {}).value })
+    : app.auth.signInWithOtp(m === 'phone' ? { phone: acc.trim() } : { email: acc.trim() });
+  p.then(r => {
+    if (r && r.error) { AUTH.err = r.error.message || '发送失败'; return; }
+    if (m === 'pwd') return doFinishLogin(r);
+    AUTH.info.sent = true;
+    AUTH.info.verify = r && r.data;
+  }).catch(e => { AUTH.err = (e && e.message) || '操作失败，请稍后重试'; })
+    .finally(() => { AUTH.sending = false; renderLogin(); });
+}
+function doFinishLogin(r) {
+  const u = r && (r.data ? (r.data.user || (r.data.session && r.data.session.user)) : r.user);
+  if (!u) { AUTH.err = '登录未完成，请重试'; renderLogin(); return; }
+  AUTH.err = ''; AUTH.info = null;
+  AUTH.user = u; AUTH.on = false;
+  renderLogin();
+  afterLogin(u);
+}
+function loginSubmit() {
+  const code = (document.querySelector('[data-lf="code"]') || {}).value;
+  if (!String(code || '').trim()) { AUTH.err = '请输入验证码'; renderLogin(); return; }
+  AUTH.sending = true; AUTH.err = ''; renderLogin();
+  const info = AUTH.info || {};
+  Promise.resolve(info.verify && info.verify.verifyOtp ? info.verify.verifyOtp({ token: String(code).trim() })
+      : (authApp().auth.verifyOtp({ token: String(code).trim(), ...(AUTH.mode === 'phone' ? { phone: info.account } : { email: info.account }) })))
+    .then(r => { if (r && r.error) { AUTH.err = r.error.message || '验证码错误'; return; } doFinishLogin(r); })
+    .catch(e => { AUTH.err = (e && e.message) || '验证失败'; })
+    .finally(() => { AUTH.sending = false; renderLogin(); });
+}
+function afterLogin(u) {
+  // 登录成功：把 CloudBase 用户身份投到「我的」页展示
+  CLOUD.user = {
+    id: u.id || u.uid || (u.user_metadata && u.user_metadata.id) || '',
+    phone: u.phone || (u.user_metadata && u.user_metadata.phone) || '',
+    email: u.email || (u.user_metadata && u.user_metadata.email) || ''
+  };
+  toast('登录成功');
+  render();
+}
+
 function boot() {
   const stored = restore();
   S.data = stored || seed();
@@ -752,7 +967,7 @@ function boot() {
   if (!stored) persist();
   el('sb-time').textContent = timeStr(new Date());
   render();
-  // 云端同步：http(s) 环境下拉取共享数据并开启轮询（本地 file:// 打开时自动降级）
+  // 云端同步：优先文档型数据库 → 同步服务 → 本地模式
   cloudInit().then(on => { if (on) render(); });
   // 登录提醒：按登录账号计算待办，原型内 toast 提示（正式环境经钉钉工作通知推送）
   setTimeout(() => {
@@ -2630,6 +2845,13 @@ document.addEventListener('click', e => {
     case 'fdetail': S.sub.findId = t.dataset.id; S.sub.from = S.page; S.page = 'fdetail'; render(); break;
     case 'filter': S.filter = t.dataset.k; render(); break;
 
+    case 'loginMode':
+      AUTH.mode = t.dataset.m; AUTH.err = '';
+      AUTH.info = null;
+      renderLogin();
+      break;
+    case 'loginSend': loginSend(); break;
+    case 'loginSubmit': loginSubmit(); break;
     case 'roleSheet':
       openSheet({ type: 'role' }); break;
     case 'pickRole':
@@ -3383,8 +3605,19 @@ function exportExcel(bounds, label) {
   }
 }
 
-/* 启动 */
-boot();
+/* 启动：数据层立即引导；配置了 CloudBase 环境时，登录层作为遮罩盖在页面上，登录成功后揭开 */
+(function start() {
+  boot();
+  if (!CLOUD_DB.env) return;
+  // SDK 异步加载，稍等就绪后再判断登录态
+  let tries = 0;
+  const wait = () => {
+    if (window.cloudbase) { authGuard(); return; }
+    if (++tries > 60) return; // 3 秒仍无 SDK（离线）→ 不出登录层，按本地模式使用
+    setTimeout(wait, 50);
+  };
+  wait();
+})();
 
 /* 测试钩子：单文件离线原型，暴露状态与核心函数给自动化回归脚本使用 */
 window.__t = {
@@ -3393,7 +3626,9 @@ window.__t = {
   findOf, taskOf, wsOf, roomOf, inPeriod, taskStatus, can, myPerms,
   voiceStart, voiceStop, voiceSupported, lineList, scopeWs, myReminders,
   rangeBounds, rangeData, rangeLabel, deleteImpact, doDeleteRange, exportExcel, RANGES,
-  doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll
+  doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll,
+  CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSend, loginSubmit, doFinishLogin,
+  dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData
 };
 </script>
 </body>
