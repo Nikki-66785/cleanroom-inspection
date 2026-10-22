@@ -1063,6 +1063,8 @@ function afterLogin(u) {
   // 登录成功：把 CloudBase 用户身份投到「我的」页展示
   CLOUD.user = {
     id: u.id || u.uid || (u.user_metadata && u.user_metadata.id) || '',
+    username: u.username || (u.user_metadata && u.user_metadata.username) || '',
+    name: u.name || (u.user_metadata && u.user_metadata.name) || '',
     phone: u.phone || (u.user_metadata && u.user_metadata.phone) || '',
     email: u.email || (u.user_metadata && u.user_metadata.email) || ''
   };
@@ -1074,6 +1076,28 @@ function afterLogin(u) {
   // 登录前 cloudInit 已因未认证而降级本地模式，登录成功后重新连接云端
   if (CLOUD_DB.env && !CLOUD.on) cloudInit().then(on => { if (on) render(); });
   render();
+}
+
+/* 「我的」页展示的登录账号 */
+function loginLabel() {
+  const u = CLOUD.user || {};
+  return u.username || u.email || u.phone || (u.id ? String(u.id).slice(0, 12) : '已登录');
+}
+/* 退出登录：清除 CloudBase 会话，回到登录页，角色回落默认 */
+function doLogout() {
+  const app = authApp();
+  const auth = app ? (typeof app.auth === 'function' ? app.auth() : app.auth) : null;
+  const fin = () => {
+    AUTH.user = null; AUTH.info = null; AUTH.err = ''; AUTH.sending = false;
+    CLOUD.user = null;
+    S.role = DEFAULT_ROLE;
+    if (AUTH.on !== undefined) AUTH.on = true;
+    renderLogin(); render();
+    toast('已退出登录');
+  };
+  if (auth && auth.signOut) {
+    Promise.resolve(auth.signOut()).catch(() => {}).then(fin);
+  } else fin();
 }
 
 function boot() {
@@ -1986,6 +2010,11 @@ function renderMe() {
       <span style="font-size:11px;color:var(--ink3)">数据模式</span>
       <span style="font-size:11.5px;font-weight:600;color:${CLOUD.on ? 'var(--pri)' : 'var(--ink2)'}">${CLOUD.on ? '多人共享（云端实时同步）' : '本地模式（数据仅存本机）'}</span>
     </div>
+    ${authEnabled() && CLOUD.user ? `<div class="row" style="margin-top:6px;padding:7px 10px;border-radius:8px;gap:6px;background:#F4F8FA">
+      <span style="font-size:11px;color:var(--ink3)">登录账号</span>
+      <span style="font-size:11.5px;font-weight:600;color:var(--ink2);word-break:break-all">${esc(loginLabel())}</span>
+      <span data-act="logout" style="margin-left:auto;font-size:11.5px;font-weight:600;color:var(--red);cursor:pointer;white-space:nowrap">退出登录</span>
+    </div>` : ''}
     ${S.role === 'production' && myShops().length ? `<div class="tiny" style="margin-top:8px;line-height:1.6">
       分管车间：${myShops().map(id => (wsOf(id) || {}).name).filter(Boolean).join('、')}（可查看全部车间数据）</div>` : ''}
     <div class="row" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;text-align:center">
@@ -2031,6 +2060,7 @@ function renderMe() {
       { act: 'dataMgr', n: '按日期导出 / 删除', d: '选择日期区间批量导出，或清理历史数据', show: can('exportAll') },
       { act: 'goAudit', n: '审计追踪', d: '角色变更、房间回复人调整、数据删除留痕', show: can('viewAudit') },
       { act: 'roleSheet', n: '切换角色', d: '巡检人 / 合规管理 / 整改回复人 / 预览', show: true },
+      { act: 'logout', n: '退出登录', d: authEnabled() && CLOUD.user ? `当前账号 ${loginLabel()}` : '未启用云端登录', show: authEnabled() && !!CLOUD.user },
       { act: 'reset', n: '重置演示数据', d: '清空并恢复初始样本', show: true }
     ].filter(i => i.show).map((i, ix, arr) => `
       <div class="row" style="justify-content:space-between;padding:13px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer" data-act="${i.act}">
@@ -2038,7 +2068,7 @@ function renderMe() {
           <div style="font-size:13px;font-weight:600">${i.n}</div>
           <div class="tiny" style="margin-top:2px">${i.d}</div>
         </div>
-        <span style="color:${i.act === 'reset' ? 'var(--red)' : 'var(--ink3)'};font-size:11.5px;font-weight:600">›</span>
+        <span style="color:${i.act === 'reset' || i.act === 'logout' ? 'var(--red)' : 'var(--ink3)'};font-size:11.5px;font-weight:600">›</span>
       </div>`).join('')}
   </div>
 
@@ -3208,6 +3238,7 @@ function handleAction(act, t, d) {
 
     case 'goConfig': S.page = 'config'; S.sub = {}; render(); break;
     case 'goAudit': S.page = 'audit'; S.sub = {}; render(); break;
+    case 'logout': doLogout(); break;
 
     case 'editAccount': {
       if (!can('manageRole')) { toast('当前角色无权调整账号权限'); break; }
@@ -3812,7 +3843,7 @@ window.__t = {
   doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll,
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSend, loginSubmit, doFinishLogin,
   dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData,
-  applyRoleBinding, afterLogin, handleAction
+  applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel
 };
 </script>
 </body>
