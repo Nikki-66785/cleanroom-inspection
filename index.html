@@ -349,8 +349,28 @@ body{
   <div id="login" data-page-node-id="lgnLayer01"></div>
 </div>
 
-<!-- CloudBase Web SDK（仅在使用文档型数据库模式时加载生效） -->
-<script src="https://static.cloudbase.net/cloudbase-js-sdk/2.17.5/cloudbase.full.js"></script>
+<!-- CloudBase Web SDK v3（ESM，esm.sh 自动打包依赖；失败自动切换备用源；仅云端模式需要） -->
+<script>
+(function loadSdk() {
+  const sources = [
+    'https://esm.sh/@cloudbase/js-sdk@3.10.3',
+    'https://esm.sh/@cloudbase/js-sdk@3.9.4',
+    'https://unpkg.com/@cloudbase/js-sdk@3.10.3/dist/index.esm.js?module'
+  ];
+  let i = 0;
+  const tryNext = () => {
+    if (i >= sources.length) return;
+    const s = document.createElement('script');
+    s.type = 'module';
+    s.textContent = "import cloudbase from '" + sources[i] + "'; window.cloudbase = cloudbase.default || cloudbase;";
+    s.onerror = () => { i++; tryNext(); };
+    // module 脚本 import 失败不触发 onerror，用轮询兜底
+    document.head.appendChild(s);
+    setTimeout(() => { if (!window.cloudbase) { i++; tryNext(); } }, 6000);
+  };
+  tryNext();
+})();
+</script>
 <script>
 /* ============================================================
    洁净车间巡检管理系统（多角色）
@@ -580,7 +600,7 @@ const CLOUD_DB = {
   env: 'cleanroom-3gk2-0dggge34t19e49fd3',  // CloudBase 环境 ID（已配置）
   region: 'ap-shanghai',
   clientId: '',            // 应用客户端 ID（控制台「应用」里可查，部分环境认证必填）
-  accessKey: '',           // Publishable Key（匿名/自定义登录场景可选）
+  accessKey: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjlkMWRjMzFlLWI0ZDAtNDQ4Yi1hNzZmLWIwY2M2M2Q4MTQ5OCJ9.eyJpc3MiOiJodHRwczovL2NsZWFucm9vbS0zZ2syLWQwZ2dnZTM0dDE5NjQ5ZmQzLmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJjbGVhbnJvb20tM2drMi1kMGdnZ2UzNHQxOTY0OWZkMyIsImV4cCI6NDA5NjM0NzY1MSwiaWF0IjoxNzkyNjY0NDUxLCJub25jZSI6IldzdzhaZ3AyUmJ5TGR2TkRwNE5aM1EiLCJhdF9oYXNoIjoiV3N3OFpncDJSYnlMZHZORHA0TlozUSIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJjbGVhbnJvb20tM2drMi1kMGdnZ2UzNHQxOTY0OWZkMyIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJ1c2VyX3R5cGUiOiIiLCJjbGllbnRfdHlwZSI6ImNsaWVudF91c2VyIiwiaXNfc3lzdGVtX2FkbWluIjpmYWxzZX0.R6gueNbeWYv87TT0IV2NFjbb6RcX7EOeb9onzdsC7oC_UARpKOQXl05SHhBWDUt-SnK-cxbR-h-WWifgd76qm6oeGp22MHGxfpDZMz58Q4YmlEo9wIpSOJVFECHD-kmO3aqj53kqNP14cUObzGh0cEKy63DM9V8nOWWKH58MOrzXmNw-5EvIhProN6a_BxeSyQLBbLi6yQG3O1gfKUDlUOdIkgH4E2UjDgIWTHxwu4LDnoh_PrvuE0BPWCsH1qRkseTOaBXed29xSARQ0Sadmf5TCzlq3URFoK_ap_qk6smczXIxJVJUgNWsp1xcNJ7Neis03lHOsgIFbGNiPqVpZA',  // Publishable Key（公开密钥）
   collection: 'app_state',
   docId: 'main',
   app: null, db: null
@@ -857,6 +877,11 @@ function authApp() {
   if (!AUTH.app && authEnabled()) AUTH.app = tcbApp();
   return AUTH.app;
 }
+function authObj() {
+  const app = authApp();
+  if (!app) return null;
+  return typeof app.auth === 'function' ? app.auth() : app.auth;  // v3 为属性，旧版为函数
+}
 /* CloudBase Web v2 认证 API：
    发码 auth.getVerification({ phone_number | email }) → { verification_id, is_user }
    手机登录 auth.signInWithSms({ verificationInfo, verificationCode, phoneNum })
@@ -918,7 +943,7 @@ function authGuard() {
   if (!authEnabled()) { AUTH.on = false; AUTH.user = null; renderLogin(); return Promise.resolve(false); }
   AUTH.on = true; renderLogin();
   const app = authApp();
-  const auth = app.auth();
+  const auth = typeof app.auth === 'function' ? app.auth() : app.auth;
   const finish = u => {
     AUTH.user = u;
     AUTH.on = !u;
@@ -943,22 +968,26 @@ function loginSend() {
   const acc = (document.querySelector('[data-lf="account"]') || {}).value;
   if (!String(acc || '').trim()) { AUTH.err = '请填写账号'; renderLogin(); return; }
   AUTH.info = { account: acc.trim(), sent: false };
-  const app = authApp();
-  const auth = app.auth();
+  const auth = authObj();
   const m = AUTH.mode;
   AUTH.sending = true; AUTH.err = ''; renderLogin();
   const pwdUser = m === 'phone' ? phoneE164(acc.trim()) : acc.trim();
   const pwdVal = (document.querySelector('[data-lf="password"]') || {}).value;
   const p = m === 'pwd'
     ? (auth.signInWithPassword
-        ? auth.signInWithPassword({ username: pwdUser, password: pwdVal })   // Web v2 规范接口
-        : auth.signIn({ username: pwdUser, password: pwdVal }))              // 旧版回退
-    : auth.getVerification(m === 'phone' ? { phone_number: phoneE164(acc.trim()) } : { email: acc.trim() });
+        ? auth.signInWithPassword({ username: pwdUser, password: pwdVal })            // v3 新版身份认证
+        : (auth.signInWithUsernameAndPassword
+            ? auth.signInWithUsernameAndPassword(pwdUser, pwdVal)                      // 经典 js-sdk
+            : auth.signIn({ username: pwdUser, password: pwdVal })))                   // 兜底
+    : (auth.signInWithOtp
+        ? auth.signInWithOtp(m === 'phone' ? { phone: acc.trim() } : { email: acc.trim() })   // v3
+        : auth.getVerification(m === 'phone' ? { phone_number: phoneE164(acc.trim()) } : { email: acc.trim() }));
   p.then(r => {
+    if (r && r.error) { AUTH.err = fmtAuthErr(r.error, m === 'pwd' ? '登录失败，请核对账号密码' : '发送失败，请稍后重试'); return; }
     if (m === 'pwd') return doFinishLogin(r);
-    AUTH.info.verify = r;      // { verification_id, is_user }
-    AUTH.info.sent = true;
-  }).catch(e => { console.error('[登录-密码] 完整错误：', e); AUTH.err = fmtAuthErr(e, '登录失败，请稍后重试'); })
+    if (r && r.data && typeof r.data.verifyOtp === 'function') { AUTH.info.verify = r.data; AUTH.info.sent = true; }  // v3
+    else { AUTH.info.verify = r; AUTH.info.sent = true; }                                                              // 旧版 { verification_id, is_user }
+  }).catch(e => { console.error('[登录] 完整错误：', e); AUTH.err = fmtAuthErr(e, '登录失败，请稍后重试'); })
     .finally(() => { AUTH.sending = false; renderLogin(); });
 }
 function doFinishLogin(ls) {
@@ -975,14 +1004,22 @@ function loginSubmit() {
   const info = AUTH.info || {};
   if (!info.verify || !info.verify.verification_id) { AUTH.err = '请先获取验证码'; renderLogin(); return; }
   AUTH.sending = true; AUTH.err = ''; renderLogin();
-  const auth = authApp().auth();
+  const auth = authObj();
   const codeStr = String(code).trim();
   const isPhone = AUTH.mode === 'phone';
   const acc = info.account;
-  const check = auth.verify({
-    verification_id: info.verify.verification_id,
-    verification_code: codeStr
-  }).then(vt => {
+  let check;
+  if (info.verify && typeof info.verify.verifyOtp === 'function') {
+    // v3：发码时返回的 verifyOtp 闭包
+    check = Promise.resolve(info.verify.verifyOtp({ token: codeStr })).then(r => {
+      if (r && r.error) throw new Error((r.error.message || '验证码错误') + (r.error.code ? `（${r.error.code}）` : ''));
+      return r;
+    });
+  } else if (info.verify && info.verify.verification_id) {
+    check = auth.verify({
+      verification_id: info.verify.verification_id,
+      verification_code: codeStr
+    }).then(vt => {
     // 已注册用户：验证码直接登录；新用户：验证码自动注册
     const token = vt && vt.verification_token;
     if (info.verify.is_user) {
@@ -999,8 +1036,11 @@ function loginSubmit() {
       username: autoName,
       name: autoName,
       password: randPwd
-    }).then(ls => ls || auth.signIn({ username: isPhone ? phoneE164(acc) : acc, password: randPwd }));
-  });
+    }).then(ls => ls || (auth.signInWithUsernameAndPassword
+      ? auth.signInWithUsernameAndPassword(isPhone ? phoneE164(acc) : acc, randPwd)
+      : auth.signIn({ username: isPhone ? phoneE164(acc) : acc, password: randPwd })));
+    });
+  }
   check.then(ls => doFinishLogin(ls))
     .catch(e => { console.error('[登录-验证码] 完整错误：', e); AUTH.err = fmtAuthErr(e, '验证失败，请核对验证码'); })
     .finally(() => { AUTH.sending = false; renderLogin(); });
@@ -3675,7 +3715,7 @@ function exportExcel(bounds, label) {
       try { authGuard(); } catch (e) { console.warn('登录门禁初始化失败：', e && e.message); }
       return;
     }
-    if (++tries > 60) return; // 3 秒仍无 SDK（离线）→ 不出登录层，按本地模式使用
+    if (++tries > 400) return; // 20 秒仍无 SDK（离线/CDN 不可达）→ 不出登录层，按本地模式使用
     setTimeout(wait, 50);
   };
   wait();
