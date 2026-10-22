@@ -349,8 +349,28 @@ body{
   <div id="login" data-page-node-id="lgnLayer01"></div>
 </div>
 
-<!-- CloudBase Web SDK：经典版环境使用 v1 全量构建（新平台环境可换 v3 ESM，本页代码两者兼容） -->
-<script src="https://static.cloudbase.net/cloudbase-js-sdk/2.17.5/cloudbase.full.js"></script>
+<!-- CloudBase Web SDK v3（ESM，esm.sh 自动打包依赖；失败自动切换备用源；仅云端模式需要） -->
+<script>
+(function loadSdk() {
+  const sources = [
+    'https://esm.sh/@cloudbase/js-sdk@3.10.3',
+    'https://esm.sh/@cloudbase/js-sdk@3.9.4',
+    'https://unpkg.com/@cloudbase/js-sdk@3.10.3/dist/index.esm.js?module'
+  ];
+  let i = 0;
+  const tryNext = () => {
+    if (i >= sources.length) return;
+    const s = document.createElement('script');
+    s.type = 'module';
+    s.textContent = "import cloudbase from '" + sources[i] + "'; window.cloudbase = cloudbase.default || cloudbase;";
+    s.onerror = () => { i++; tryNext(); };
+    // module 脚本 import 失败不触发 onerror，用轮询兜底
+    document.head.appendChild(s);
+    setTimeout(() => { if (!window.cloudbase) { i++; tryNext(); } }, 6000);
+  };
+  tryNext();
+})();
+</script>
 <script>
 /* ============================================================
    洁净车间巡检管理系统（多角色）
@@ -577,7 +597,7 @@ const month = () => monthStr();
    - 模式 B（同步服务）：无 env 配置时，走 /api/data（云托管 Node 服务或内网自建服务）
    - 两者都不可用（file:// 或网络失败）时降级为本地模式，仅存本机 localStorage */
 const CLOUD_DB = {
-  env: 'cleanroom-3gk2-0dggge34t19e49fd3',  // CloudBase 环境 ID（已配置）
+  env: 'cleanroom-3gk2-d0ggge34t19649fd3',  // CloudBase 环境 ID（以控制台「环境信息」复制的为准）
   region: 'ap-shanghai',
   clientId: '',            // 应用客户端 ID（控制台「应用」里可查，部分环境认证必填）
   accessKey: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjlkMWRjMzFlLWI0ZDAtNDQ4Yi1hNzZmLWIwY2M2M2Q4MTQ5OCJ9.eyJpc3MiOiJodHRwczovL2NsZWFucm9vbS0zZ2syLWQwZ2dnZTM0dDE5NjQ5ZmQzLmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJjbGVhbnJvb20tM2drMi1kMGdnZ2UzNHQxOTY0OWZkMyIsImV4cCI6NDA5NjM0NzY1MSwiaWF0IjoxNzkyNjY0NDUxLCJub25jZSI6IldzdzhaZ3AyUmJ5TGR2TkRwNE5aM1EiLCJhdF9oYXNoIjoiV3N3OFpncDJSYnlMZHZORHA0TlozUSIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJjbGVhbnJvb20tM2drMi1kMGdnZ2UzNHQxOTY0OWZkMyIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJ1c2VyX3R5cGUiOiIiLCJjbGllbnRfdHlwZSI6ImNsaWVudF91c2VyIiwiaXNfc3lzdGVtX2FkbWluIjpmYWxzZX0.R6gueNbeWYv87TT0IV2NFjbb6RcX7EOeb9onzdsC7oC_UARpKOQXl05SHhBWDUt-SnK-cxbR-h-WWifgd76qm6oeGp22MHGxfpDZMz58Q4YmlEo9wIpSOJVFECHD-kmO3aqj53kqNP14cUObzGh0cEKy63DM9V8nOWWKH58MOrzXmNw-5EvIhProN6a_BxeSyQLBbLi6yQG3O1gfKUDlUOdIkgH4E2UjDgIWTHxwu4LDnoh_PrvuE0BPWCsH1qRkseTOaBXed29xSARQ0Sadmf5TCzlq3URFoK_ap_qk6smczXIxJVJUgNWsp1xcNJ7Neis03lHOsgIFbGNiPqVpZA',  // Publishable Key（公开密钥）
