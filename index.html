@@ -1,0 +1,3400 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="roxUVWcEMiFJzzet0ydx0x">
+<head data-page-node-id="s9XPuFRFJhVnmQaYRg3pDD">
+<meta charset="UTF-8" data-page-node-id="pQaIaRqONNwlxiNa3cIR2u">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" data-page-node-id="3xTAShH1AaUyfDoWcQWRmA">
+<title>洁净车间巡检 · 车间巡检管理</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:#DFE6EA;display:flex;align-items:center;justify-content:center;
+  color:#0F1E28;font-size:14px;-webkit-font-smoothing:antialiased;
+}
+:root{
+  --pri:#0F8378;--pri-d:#0B6A61;--pri-l:#E6F3F1;
+  --ink:#0F1E28;--ink2:#61748A;--ink3:#93A4B2;
+  --line:#E9EFF3;--bg:#F3F6F8;--card:#fff;
+  --red:#D33F3F;--red-l:#FCECEC;
+  --amber:#BF7A12;--amber-l:#FDF4E4;
+  --green:#12825A;--green-l:#E7F5EF;
+  --blue:#2563C9;--blue-l:#EBF1FC;
+}
+.phone{
+  position:relative;width:390px;height:844px;max-height:97vh;
+  background:var(--bg);border-radius:40px;overflow:hidden;
+  display:flex;flex-direction:column;
+  box-shadow:0 0 0 9px #23323C,0 0 0 10px #3B4C57,0 28px 64px rgba(12,35,48,.28);
+}
+@media (max-width:820px),(max-height:700px){
+  .phone{width:100%;height:100vh;max-height:none;border-radius:0;box-shadow:none}
+  body{display:block;background:var(--bg)}
+}
+/* Pad 适配：平板（iPad 等）下放宽外壳与内容区，保持可读比例 */
+@media (min-width:821px) and (max-width:1366px) and (min-height:701px){
+  .phone{width:min(58vw,760px);height:min(94vh,1080px)}
+  #view{padding:16px 24px 30px}
+  .nav-in{padding:0 18px}
+  .sheet-pan{max-width:640px}
+}
+.statusbar{flex:0 0 34px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 22px;font-size:12px;font-weight:600;background:#fff;letter-spacing:.3px}
+.statusbar .sb-r{display:flex;align-items:center;gap:5px}
+.statusbar svg{display:block}
+#nav{flex:0 0 auto;background:#fff;border-bottom:1px solid var(--line)}
+.nav-in{height:46px;display:flex;align-items:center;padding:0 10px;gap:6px}
+.nav-title{font-size:16px;font-weight:650;flex:1;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  border-radius:9px;border:none;background:transparent;color:var(--ink);cursor:pointer;flex:0 0 32px}
+.nav-btn:active{background:#EEF3F6}
+#view{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 14px 24px}
+#view::-webkit-scrollbar{width:0}
+#tabbar{flex:0 0 auto;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:6px}
+.tab{flex:1;border:none;background:transparent;padding:8px 0 4px;display:flex;flex-direction:column;
+  align-items:center;gap:3px;font-size:10.5px;color:var(--ink3);font-weight:500;cursor:pointer;position:relative}
+.tab.on{color:var(--pri);font-weight:650}
+.tab svg{width:21px;height:21px}
+.tab .dot{position:absolute;top:6px;right:50%;margin-right:-16px;min-width:15px;height:15px;
+  border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;padding:0 4px}
+
+.card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--line);
+  box-shadow:0 1px 2px rgba(15,40,55,.03)}
+.sec-title{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 9px}
+.sec-title h3{margin:0;font-size:14px;font-weight:650}
+.sec-title span{font-size:11.5px;color:var(--ink3)}
+.tiny{font-size:11px;color:var(--ink3);line-height:1.6}
+.tag{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;
+  padding:2px 6px;border-radius:5px;line-height:1.5;font-style:normal;white-space:nowrap}
+.tag.ok{background:var(--green-l);color:var(--green)}
+.tag.danger{background:var(--red-l);color:var(--red)}
+.tag.warn{background:var(--amber-l);color:var(--amber)}
+.tag.info{background:var(--blue-l);color:var(--blue)}
+.tag.gray{background:#F0F4F6;color:var(--ink2)}
+.tag.pri{background:var(--pri-l);color:var(--pri-d)}
+.btn{border:none;border-radius:11px;font-size:14px;font-weight:600;padding:12px 16px;
+  cursor:pointer;font-family:inherit;transition:transform .06s}
+.btn:active{transform:scale(.985)}
+.btn-pri{background:var(--pri);color:#fff;box-shadow:0 6px 16px rgba(15,131,120,.22)}
+.btn-ghost{background:#EEF3F5;color:var(--ink)}
+.btn-line{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.btn-sm{padding:8px 10px;font-size:12px;border-radius:9px}
+.btn:disabled{opacity:.45;box-shadow:none}
+.row{display:flex;align-items:center;gap:10px}
+.empty{text-align:center;padding:40px 20px;color:var(--ink3)}
+.empty b{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px}
+.empty svg{opacity:.45;margin-bottom:10px}
+
+/* 角色胶囊 */
+.role-pill{display:flex;align-items:center;gap:5px;border:1px solid var(--line);background:#F7FAFB;
+  border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;flex:0 0 auto}
+.role-pill i{width:6px;height:6px;border-radius:50%;display:block}
+.r-ins i{background:#0F8378}.r-com i{background:#2563C9}.r-pro i{background:#C77A1E}.r-prev i{background:#6B7E8C}
+.r-ins{color:#0B6A61;background:#EAF5F3;border-color:#D3E9E5}
+.r-com{color:#1B4FA8;background:#EFF4FD;border-color:#D9E4F8}
+.r-pro{color:#9A5E12;background:#FDF6EA;border-color:#F2E3C8}
+.r-prev{color:#46586A;background:#F0F3F6;border-color:#E0E7ED}
+
+/* hero */
+.hero{border-radius:18px;padding:16px;border:1px solid #D9EAE6;
+  background:linear-gradient(150deg,#E4F2EF 0%,#F0F8F6 58%,#F8FBFA 100%);position:relative;overflow:hidden}
+.hero.com{border-color:#DCE6F7;background:linear-gradient(150deg,#E8F0FC 0%,#F2F6FD 60%,#FAFCFF 100%)}
+.hero.pro{border-color:#F0E3CB;background:linear-gradient(150deg,#FCF3E3 0%,#FDF8EF 60%,#FFFCF7 100%)}
+.hero::after{content:"";position:absolute;right:-42px;top:-56px;width:150px;height:150px;
+  border-radius:50%;background:rgba(15,131,120,.05)}
+.hero.com::after{background:rgba(37,99,201,.05)}
+.hero.pro::after{background:rgba(199,122,30,.06)}
+.hero-date{font-size:11.5px;color:#4C7A72;font-weight:600;letter-spacing:.4px}
+.hero.com .hero-date{color:#4A6690}.hero.pro .hero-date{color:#8A6A3A}
+.hero-h{font-size:19px;font-weight:700;margin:4px 0 3px;letter-spacing:-.2px}
+.hero-sub{font-size:11.5px;color:#4C7A72}
+.hero.com .hero-sub{color:#4A6690}.hero.pro .hero-sub{color:#8A6A3A}
+.hero.prev{border-color:#E0E7ED;background:linear-gradient(150deg,#F0F3F6 0%,#F7F9FB 60%,#FDFEFE 100%)}
+.hero.prev::after{background:rgba(107,126,140,.06)}
+.hero.prev .hero-date,.hero.prev .hero-sub{color:#5A6B7A}
+.ring{position:relative;width:78px;height:78px;flex:0 0 78px}
+.ring svg{transform:rotate(-90deg)}
+.ring-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;font-size:17px;font-weight:750;color:var(--pri-d);line-height:1}
+.hero.com .ring-num{color:#1B4FA8}.hero.pro .ring-num{color:#9A5E12}
+.ring-num small{font-size:9.5px;font-weight:600;color:#5E8981;margin-top:3px}
+.hero-stats{display:flex;margin-top:14px;border-top:1px dashed #CFE3DE;padding-top:11px}
+.hero.com .hero-stats{border-color:#D5E0F2}
+.hero.pro .hero-stats{border-color:#EFE0C6}
+.hs{flex:1;text-align:center;position:relative}
+.hs+.hs::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:1px;background:#D9EAE6}
+.hero.com .hs+.hs::before{background:#DCE6F7}
+.hero.pro .hs+.hs::before{background:#EFE3CC}
+.hs b{display:block;font-size:16px;font-weight:700;line-height:1.2}
+.hs span{font-size:10.5px;color:#5E8981;font-weight:500}
+
+/* 任务卡 */
+.tcard{background:#fff;border:1px solid var(--line);border-radius:13px;padding:13px;
+  margin-bottom:9px;cursor:pointer;position:relative;overflow:hidden}
+.tcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#E4EBEF}
+.tcard.st-pending::before{background:#C3CFD8}
+.tcard.st-doing::before{background:var(--blue)}
+.tcard.st-submitted::before{background:var(--amber)}
+.tcard.st-processing::before{background:var(--pri)}
+.tcard.st-closed::before{background:var(--green)}
+.tc-h{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.tc-name{font-size:14px;font-weight:680;display:flex;align-items:center;gap:6px}
+.tc-code{font-size:10px;font-weight:700;color:var(--ink3);background:#F2F5F7;
+  padding:1px 5px;border-radius:4px}
+.tc-meta{display:flex;gap:10px;font-size:11px;color:var(--ink3);margin-top:7px;flex-wrap:wrap;align-items:center}
+.tc-bar{height:4px;border-radius:3px;background:#EDF1F4;margin-top:9px;overflow:hidden}
+.tc-bar i{display:block;height:100%;border-radius:3px;background:var(--pri)}
+
+/* 房间网格 */
+.room-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.room-cell{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px;cursor:pointer;
+  position:relative;transition:border-color .15s}
+.room-cell:active{border-color:var(--pri)}
+.room-cell.checked{border-color:#CFE5DF;background:#FBFEFD}
+.rc-code{font-size:10px;font-weight:700;color:var(--pri);letter-spacing:.2px}
+.room-cell.checked .rc-code{color:var(--pri-d)}
+.rc-name{font-size:12.5px;font-weight:600;margin-top:3px;line-height:1.35}
+.rc-st{font-size:10px;color:var(--ink3);margin-top:5px;display:flex;align-items:center;gap:4px}
+.rc-st .pdot{width:5px;height:5px;border-radius:50%;background:#CBD5DD;display:block}
+.room-cell.checked .rc-st .pdot{background:var(--green)}
+.room-cell.hasfind .rc-st .pdot{background:var(--red)}
+.rc-badge{position:absolute;top:8px;right:8px;min-width:16px;height:16px;border-radius:8px;
+  background:var(--red);color:#fff;font-size:9.5px;font-weight:700;display:flex;align-items:center;
+  justify-content:center;padding:0 4px}
+
+/* 发现项卡 */
+.fcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;
+  margin-bottom:9px;cursor:pointer;position:relative}
+.fcard.lv-critical{border-left:3px solid #D33F3F}
+.fcard.lv-major{border-left:3px solid #E0A03A}
+.fcard.lv-minor{border-left:3px solid #5B8DC9}
+.fcard.lv-advice{border-left:3px solid #B9C6CF}
+.fc-h{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.fc-t{font-size:13px;font-weight:650;line-height:1.45;flex:1}
+.fc-loc{font-size:10.5px;color:var(--ink3);margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.fc-foot{display:flex;justify-content:space-between;align-items:center;margin-top:9px;
+  padding-top:9px;border-top:1px dashed #EDF1F4;font-size:10.5px;color:var(--ink3)}
+.photos{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.photos img{width:56px;height:56px;object-fit:cover;border-radius:7px;border:1px solid var(--line)}
+
+/* 详情 */
+.dt-hero{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px;margin-bottom:10px}
+.kv{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed #EDF1F4;font-size:12.5px}
+.kv:last-child{border-bottom:none}
+.kv span:first-child{color:var(--ink2);flex:0 0 auto}
+.kv span:last-child{font-weight:600;text-align:right}
+.timeline{position:relative;padding-left:20px}
+.tl{position:relative;padding-bottom:16px}
+.tl:last-child{padding-bottom:0}
+.tl::before{content:"";position:absolute;left:-14px;top:5px;width:7px;height:7px;border-radius:50%;
+  background:#D6DFE6;border:2px solid #fff;box-shadow:0 0 0 1px #E1E9EE}
+.tl.done::before{background:var(--pri);box-shadow:0 0 0 1px #B8DDD7}
+.tl::after{content:"";position:absolute;left:-11px;top:14px;bottom:0;width:1px;background:#E8EEF2}
+.tl:last-child::after{display:none}
+.tl-t{font-size:12.5px;font-weight:650}
+.tl-d{font-size:11px;color:var(--ink3);margin-top:3px;line-height:1.6}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi b{display:block;font-size:21px;font-weight:750;letter-spacing:-.5px;line-height:1.15}
+.kpi span{font-size:10.5px;color:var(--ink3);font-weight:500}
+.kpi i{font-style:normal;font-size:10px;font-weight:650;padding:1px 5px;border-radius:4px;margin-left:4px}
+.bar-row{display:flex;align-items:center;gap:9px;margin-bottom:9px;font-size:11.5px}
+.bar-row .bl{width:96px;flex:0 0 96px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;height:8px;background:#F0F4F6;border-radius:5px;overflow:hidden}
+.bar-track i{display:block;height:100%;border-radius:5px;background:var(--pri)}
+.bar-row .bv{width:18px;text-align:right;font-weight:700;font-size:11.5px;flex:0 0 18px}
+
+/* 配置 */
+.cfg-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;
+  border-bottom:1px solid #F2F6F8}
+.cfg-row:last-child{border-bottom:none}
+.stepper{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.stepper button{width:30px;height:28px;border:none;background:#F7FAFB;font-size:15px;font-weight:600;
+  color:var(--ink2);cursor:pointer;font-family:inherit}
+.stepper button:active{background:#EDF2F5}
+.stepper span{width:44px;text-align:center;font-size:12.5px;font-weight:700}
+.ws-item{border:1px solid var(--line);border-radius:11px;margin-bottom:8px;overflow:hidden;background:#fff}
+.ws-h{display:flex;align-items:center;justify-content:space-between;padding:12px;cursor:pointer;gap:8px}
+.ws-name{font-size:13px;font-weight:650}
+.ws-rooms{padding:0 12px 10px;display:none}
+.ws-item.open .ws-rooms{display:block}
+.ws-room{display:flex;align-items:center;justify-content:space-between;padding:8px 0;
+  border-top:1px dashed #EDF1F4;font-size:12px}
+.ws-room .rc{font-size:10px;font-weight:700;color:var(--ink3);background:#F2F5F7;
+  padding:1px 5px;border-radius:4px;margin-right:6px}
+
+/* actionbar */
+.actionbar{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.97);
+  backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 14px 16px;
+  display:flex;gap:9px;z-index:20}
+.actionbar .btn{flex:1}
+.has-bar #view{padding-bottom:86px}
+
+/* sheet */
+#sheet{position:absolute;inset:0;z-index:60;display:none}
+#sheet.on{display:block}
+.sheet-mask{position:absolute;inset:0;background:rgba(11,30,40,.42)}
+.sheet-pan{position:absolute;left:0;right:0;bottom:0;max-height:90%;background:#F5F8FA;
+  border-radius:20px 20px 0 0;display:flex;flex-direction:column;animation:up .24s ease}
+@keyframes up{from{transform:translateY(28px);opacity:.65}to{transform:translateY(0);opacity:1}}
+.sheet-hd{padding:14px 16px 10px;border-bottom:1px solid var(--line);background:#fff;
+  border-radius:20px 20px 0 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sheet-hd b{font-size:15px}
+.sheet-bd{flex:1;overflow-y:auto;padding:12px 14px 16px}
+.sheet-ft{padding:10px 14px 16px;background:#fff;border-top:1px solid var(--line);display:flex;gap:9px}
+.sheet-ft .btn{flex:1}
+.fld{margin-top:11px}
+.fld:first-child{margin-top:0}
+.fld label{display:block;font-size:10.5px;font-weight:650;color:var(--ink3);margin-bottom:5px;letter-spacing:.3px}
+.fld input,.fld textarea,.fld select{width:100%;border:1px solid #E1E9EE;border-radius:9px;
+  padding:10px 11px;font-size:13px;font-family:inherit;color:var(--ink);background:#FAFCFD;outline:none;
+  transition:border-color .15s}
+.fld input:focus,.fld textarea:focus,.fld select:focus{border-color:var(--pri);background:#fff}
+.fld textarea{resize:none;line-height:1.6}
+/* 语音输入 */
+.fld-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.fld-hd label{margin-bottom:0}
+.mic{display:inline-flex;align-items:center;gap:4px;border:1px solid #D7E4E2;background:#F5FBF9;
+  color:#0B6A61;border-radius:12px;padding:3px 9px 3px 7px;font-size:10.5px;font-weight:650;
+  cursor:pointer;font-family:inherit;transition:all .15s;line-height:1.4}
+.mic:hover{background:#EAF5F3}
+.mic svg{flex:0 0 11px}
+.mic.rec{background:#D33F3F;border-color:#D33F3F;color:#fff;animation:pulse 1.1s infinite}
+.mic.rec:hover{background:#C13636}
+.mic:disabled{opacity:.45;cursor:not-allowed}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(211,63,63,.45)}50%{box-shadow:0 0 0 5px rgba(211,63,63,0)}}
+.voice-tip{font-size:10.5px;color:#0B6A61;background:#F0F9F7;border:1px solid #D7E9E5;
+  border-radius:8px;padding:7px 9px;margin-top:7px;line-height:1.55;display:none}
+.voice-tip.on{display:block}
+.up{width:56px;height:56px;border:1.5px dashed #C9D7DF;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;background:#FAFCFD;cursor:pointer;color:var(--ink3);position:relative;overflow:hidden}
+.up img{width:100%;height:100%;object-fit:cover}
+.up-wrap{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.lv-pick{display:flex;gap:7px}
+.lv-pick button{flex:1;border:1.5px solid #E1E9EE;background:#FAFCFD;border-radius:10px;padding:9px 4px;
+  font-family:inherit;cursor:pointer;text-align:center;transition:all .14s}
+.lv-pick button b{display:block;font-size:12px;font-weight:700;color:var(--ink2)}
+.lv-pick button small{display:block;font-size:9.5px;color:var(--ink3);margin-top:2px}
+.lv-pick button[data-lv="critical"].on{background:#FCECEC;border-color:#E9B9B9}
+.lv-pick button[data-lv="critical"].on b{color:var(--red)}
+.lv-pick button[data-lv="major"].on{background:#FDF4E4;border-color:#EBD3A5}
+.lv-pick button[data-lv="major"].on b{color:var(--amber)}
+.lv-pick button[data-lv="minor"].on{background:#F0F4F6;border-color:#CFDAE2}
+.lv-pick button[data-lv="minor"].on b{color:var(--ink2)}
+.role-opt{display:flex;align-items:center;gap:11px;padding:13px 12px;border:1.5px solid var(--line);
+  border-radius:12px;margin-bottom:8px;background:#fff;cursor:pointer}
+.role-opt.on{border-color:var(--pri);background:#F7FCFB}
+.role-opt .rc-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:15px;flex:0 0 36px}
+.role-opt b{font-size:13px;display:block}
+.role-opt small{font-size:10.5px;color:var(--ink3);display:block;margin-top:2px;line-height:1.5}
+
+#toast{position:absolute;left:50%;bottom:110px;transform:translate(-50%,10px);z-index:80;
+  background:rgba(16,32,42,.9);color:#fff;font-size:12.5px;font-weight:600;padding:10px 16px;
+  border-radius:10px;opacity:0;pointer-events:none;transition:all .22s;max-width:82%;text-align:center;
+  line-height:1.5}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body data-page-node-id="YqYjSoj4jINAkxzZdu9YVW">
+<div class="phone" id="phone" data-page-node-id="SLPXUsXPam4yIfI7nIGFfr">
+  <div class="statusbar" data-page-node-id="apZx4FAfW2JmFV1JtIXNmY">
+    <span id="sb-time" data-page-node-id="I9A1BPdEKL9AcjdKZPcjOm">9:41</span>
+    <div class="sb-r" data-page-node-id="VQMjxYb452KmqXTyat4KYZ">
+      <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor" data-page-node-id="onzq6AMOmn8gFokgI6YqZT"><rect x="0" y="7" width="2.6" height="4" rx=".8" data-page-node-id="fn7sY8MNFyLplIiPRqnqdT"/><rect x="4" y="5" width="2.6" height="6" rx=".8" data-page-node-id="5u165Jpx9GHCBp7mRd086z"/><rect x="8" y="2.5" width="2.6" height="8.5" rx=".8" data-page-node-id="rR5spJjLMxF2neFY4ako65"/><rect x="12" y="0" width="2.6" height="11" rx=".8" opacity=".35" data-page-node-id="CHBrsEMwAr4PyGCxCtaRhT"/></svg>
+      <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor" data-page-node-id="i7PptAZGhhsEJBmDTJWrN9"><path d="M7.5 9.6a1.1 1.1 0 100-2.2 1.1 1.1 0 000 2.2zM7.5 5.2c1.1 0 2.1.4 2.9 1.1l1-1.1a5.9 5.9 0 00-7.8 0l1 1.1a4.3 4.3 0 012.9-1.1zM7.5 1.4c2.1 0 4 .8 5.5 2.1l1-1.1A9.4 9.4 0 007.5 0C5 0 2.7.9 1 2.4l1 1.1a8 8 0 015.5-2.1z" data-page-node-id="uYF6pQ9mKcsyeHI0n48eKv"/></svg>
+      <svg width="22" height="11" viewBox="0 0 22 11" fill="none" data-page-node-id="JoTWjCRdfTSaoFT3wU774j"><rect x=".5" y=".5" width="18" height="10" rx="2.6" stroke="currentColor" opacity=".4" data-page-node-id="DZkLCaCMHpKmulsD7PO8Dv"/><rect x="1.8" y="1.8" width="13.5" height="7.4" rx="1.6" fill="currentColor" data-page-node-id="YTOzUxvMmkXeUAVLtiIeKb"/><path d="M20 3.6v3.8c.9-.3 1.4-1 1.4-1.9S20.9 3.9 20 3.6z" fill="currentColor" opacity=".4" data-page-node-id="YNupE0vpq8RzCbbDNcwqja"/></svg>
+    </div>
+  </div>
+  <div id="nav" data-page-node-id="pXx6gHpTjlwTCbcDRvjhXp"></div>
+  <div id="view" data-page-node-id="JdPQyLx829g5YMefCoG0yS"></div>
+  <div id="tabbar" data-page-node-id="5uq1k3ieSWKaPZI7anCVaY"></div>
+  <div id="sheet" data-page-node-id="BOA07ALc8nSjot9CTrfDhi"></div>
+  <div id="toast" data-page-node-id="4ea5PT1vPF9LjPuuBuh6JI"></div>
+</div>
+
+<script>
+/* ============================================================
+   洁净车间巡检管理系统（多角色）
+   巡检人登记发现项 → 合规管理确认 → 整改回复人 7 日内回复并给出责任人
+   ============================================================ */
+
+/* ---------- 工具 ---------- */
+const KEY = 'cri_v2';
+const pad = n => String(n).padStart(2, '0');
+const dateStr = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const timeStr = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const todayStr = () => dateStr(new Date());
+const monthStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+const el = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function addDays(n, base) {
+  const d = base ? new Date(base) : new Date();
+  d.setDate(d.getDate() + n);
+  return dateStr(d);
+}
+function daysBetween(a, b) {
+  const d1 = new Date(a + 'T00:00:00'), d2 = new Date(b + 'T00:00:00');
+  return Math.round((d2 - d1) / 86400000);
+}
+function md(s) { return String(s || '').slice(5).replace('-', '/'); }
+function uid(p) { return p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+
+/* ---------- 角色与人员 ---------- */
+/* 账号来源：钉钉扫码登录，默认授予「预览」（只读）角色；
+   整改回复人等其他角色与车间范围由巡检人或合规管理在系统内（账号与权限）单独设置 */
+const ROLES = {
+  inspector: { key: 'inspector', name: '巡检人', cls: 'r-ins', desc: '分配巡检任务、执行巡检、登记发现项',
+    dept: 'QA 巡检组', src: '钉钉 · QA巡检组' },
+  compliance: { key: 'compliance', name: '合规管理', cls: 'r-com', desc: '确认发现项、干预巡检任务、维护车间主数据',
+    dept: '质量保证部', src: '钉钉 · 质量保证部' },
+  production: { key: 'production', name: '整改回复人', cls: 'r-pro', desc: '一周内回复整改措施与责任人（由巡检人 / 合规管理单独授予）',
+    dept: '生产制造部', src: '钉钉 · 生产制造部' },
+  preview: { key: 'preview', name: '预览', cls: 'r-prev', desc: '只读查看巡检数据（钉钉登录默认角色）',
+    dept: '—', src: '钉钉 · 默认' }
+};
+/* 钉钉扫码登录后的默认角色：预览（只读），由巡检人 / 合规管理在「我的」中调整 */
+const DEFAULT_ROLE = 'preview';
+
+const STAFF = {
+  inspector: { name: '张伟', emp: 'EMP-2043', dept: 'QA 巡检组', shops: [] },
+  compliance: { name: '陈晓', emp: 'EMP-1088', dept: '质量保证部', shops: [] },
+  production: { name: '王强', emp: 'EMP-0312', dept: '生产制造部', shops: ['W3', 'W7'] },
+  preview: { name: '访客', emp: 'EMP-0000', dept: '钉钉登录（默认）', shops: [] }
+};
+
+/* ---------- 系统账号（可被授予角色，默认「预览」） ---------- */
+const DEFAULT_ACCOUNTS = [
+  { emp: 'DD-10231', name: '张伟', dept: 'QA 巡检组', role: 'inspector', shops: [], loginAt: '2026-10-01 08:12' },
+  { emp: 'DD-10488', name: '李静', dept: 'QA 巡检组', role: 'inspector', shops: [], loginAt: '2026-10-02 09:03' },
+  { emp: 'DD-10502', name: '周敏', dept: 'QA 巡检组', role: 'inspector', shops: [], loginAt: '2026-10-03 08:47' },
+  { emp: 'DD-10666', name: '陈晓', dept: '质量保证部', role: 'compliance', shops: [], loginAt: '2026-10-01 08:05' },
+  { emp: 'DD-10777', name: '赵磊', dept: '质量保证部', role: 'compliance', shops: [], loginAt: '2026-10-06 10:20' },
+  { emp: 'DD-20112', name: '王强', dept: '生产制造部', role: 'production', shops: ['W3', 'W7'], loginAt: '2026-10-02 07:58' },
+  { emp: 'DD-20345', name: '刘洋', dept: '生产制造部', role: 'production', shops: ['W1', 'W2'], loginAt: '2026-10-08 08:31' }
+];
+const INSPECTORS = ['张伟', '李静', '周敏'];
+
+/* ---------- 权限声明表（唯一可信来源） ----------
+   roles: 允许的角色；scope: 数据范围；on: 状态门槛
+   界面渲染与事件处理共用同一判断 */
+const CAN = {
+  assignTask:   { name: '分配巡检任务', roles: ['inspector', 'compliance'],
+                  scope: () => true, on: () => true },
+  reassign:     { name: '改派 / 改期', roles: ['inspector', 'compliance'],
+                  scope: (t) => S.role === 'compliance' || t.assignee === me().name,
+                  on: (t) => ['pending', 'doing'].indexOf(taskStatus(t)) >= 0 },
+  withdraw:     { name: '撤回任务', roles: ['inspector', 'compliance'],
+                  scope: (t) => S.role === 'compliance' || t.assignee === me().name || t.createdBy === me().name,
+                  on: (t) => S.role === 'compliance' ? taskStatus(t) !== 'closed' : taskStatus(t) === 'pending' },
+  inspect:      { name: '执行巡检 / 登记发现项', roles: ['inspector'],
+                  scope: (t) => t.assignee === me().name,
+                  on: (t) => ['pending', 'doing'].indexOf(taskStatus(t)) >= 0 },
+  fixFinding:   { name: '修改被退回的发现项', roles: ['inspector'],
+                  scope: (f) => f.foundBy === me().name,
+                  on: (f) => f.status === 'returned' },
+  confirmFind:  { name: '确认 / 退回发现项', roles: ['compliance'],
+                  scope: () => true,
+                  on: (f) => f.status === 'pending' },
+  replyFind:    { name: '整改回复', roles: ['production'],
+                  scope: () => true,
+                  on: (f) => f.status === 'confirmed' },
+  manageData:   { name: '车间 / 房间管理', roles: ['compliance', 'inspector'], scope: () => true, on: () => true },
+  manageRole:   { name: '账号与角色分配', roles: ['inspector', 'compliance'], scope: () => true, on: () => true },
+  configPolicy: { name: '巡检频率与回复周期配置', roles: ['compliance'], scope: () => true, on: () => true },
+  exportAll:    { name: '全量数据导出', roles: ['compliance'], scope: () => true, on: () => true },
+  viewAll:      { name: '查看全部车间数据', roles: ['compliance', 'production', 'preview'], scope: () => true, on: () => true },
+  viewAudit:    { name: '查看审计追踪', roles: ['inspector', 'compliance'], scope: () => true, on: () => true }
+};
+
+/* 生产端可查看全部车间；分管车间仅用于区分「我的车间」快捷筛选 */
+function myShops() { return me().shops || []; }
+function inMyShops(f) { return myShops().indexOf(f.workshopId) >= 0; }
+
+/* 统一校验入口：scope=数据范围，on=当前状态是否允许 */
+function can(act, obj) {
+  const r = CAN[act];
+  if (!r || r.roles.indexOf(S.role) < 0) return false;
+  if (obj) {
+    if (r.scope && !r.scope(obj)) return false;
+    if (r.on && !r.on(obj)) return false;
+  }
+  return true;
+}
+/* 我的权限清单（用于界面展示） */
+function myPerms() {
+  return Object.keys(CAN).filter(k => CAN[k].roles.indexOf(S.role) >= 0).map(k => CAN[k].name);
+}
+
+const LEVELS = {
+  critical: { name: '重大', desc: '直接影响产品质量与患者安全', cls: 'danger' },
+  major: { name: '中度', desc: '系统性风险或重复发生', cls: 'warn' },
+  minor: { name: '微小', desc: '个别不规范，影响局部', cls: 'info' },
+  advice: { name: '建议', desc: '改进机会，不构成偏差', cls: 'gray' }
+};
+/* 发现项分类（可多选；整改回复人回复时可修订） */
+const CATEGORIES = [
+  'GDP/文件记录', '清洁卫生', '人员行为', '状态标识与防混淆', '物料管理',
+  '生产操作与工艺执行', '设备、仪器与设施维修', '数据完整性、验证与计算机化系统', '其他'
+];
+const TASK_ST = {
+  pending: { name: '待巡检', cls: 'gray' },
+  doing: { name: '巡检中', cls: 'info' },
+  submitted: { name: '待合规确认', cls: 'warn' },
+  processing: { name: '待生产回复', cls: 'pri' },
+  closed: { name: '已完成', cls: 'ok' }
+};
+const FIND_ST = {
+  pending: { name: '待确认', cls: 'warn' },
+  returned: { name: '已退回', cls: 'danger' },
+  confirmed: { name: '待回复', cls: 'pri' },
+  replied: { name: '已回复', cls: 'ok' }
+};
+
+/* ---------- 车间与房间（可配置） ---------- */
+const DEFAULT_WORKSHOPS = [
+  { id: 'W1', code: 'C7', name: 'C7制剂车间', line: 'C7', rooms: [
+    { id: 'R101', code: 'C7-101', name: '配液间' },
+    { id: 'R102', code: 'C7-102', name: '灌装间' },
+    { id: 'R103', code: 'C7-103', name: '轧盖间' },
+    { id: 'R104', code: 'C7-104', name: '更衣室' },
+    { id: 'R105', code: 'C7-105', name: '洁净走廊' },
+    { id: 'R106', code: 'C7-106', name: '器具清洗间' }
+  ]},
+  { id: 'W2', code: 'SJ1', name: 'SJ1原液车间', line: 'SJ1', rooms: [
+    { id: 'R201', code: 'SJ1-201', name: '发酵间' },
+    { id: 'R202', code: 'SJ1-202', name: '纯化间' },
+    { id: 'R203', code: 'SJ1-203', name: '配液间' },
+    { id: 'R204', code: 'SJ1-204', name: '更衣室' },
+    { id: 'R205', code: 'SJ1-205', name: '洁净走廊' }
+  ]},
+  { id: 'W3', code: 'SJ2A', name: 'SJ2 ADC原液车间', line: 'SJ2-ADC', rooms: [
+    { id: 'R301', code: 'SJ2A-301', name: '偶联反应间' },
+    { id: 'R302', code: 'SJ2A-302', name: '纯化间' },
+    { id: 'R303', code: 'SJ2A-303', name: '配液间' },
+    { id: 'R304', code: 'SJ2A-304', name: '更衣室' },
+    { id: 'R305', code: 'SJ2A-305', name: '洁净走廊' }
+  ]},
+  { id: 'W4', code: 'SJ2B', name: 'SJ2 ADC制剂车间', line: 'SJ2-ADC', rooms: [
+    { id: 'R401', code: 'SJ2B-401', name: '灌装间' },
+    { id: 'R402', code: 'SJ2B-402', name: '冻干间' },
+    { id: 'R403', code: 'SJ2B-403', name: '轧盖间' },
+    { id: 'R404', code: 'SJ2B-404', name: '更衣室' },
+    { id: 'R405', code: 'SJ2B-405', name: '洁净走廊' }
+  ]},
+  { id: 'W5', code: 'SJ2C', name: 'SJ2 细胞库', line: 'SJ2', rooms: [
+    { id: 'R501', code: 'SJ2C-501', name: '液氮存储间' },
+    { id: 'R502', code: 'SJ2C-502', name: '细胞复苏间' },
+    { id: 'R503', code: 'SJ2C-503', name: '更衣室' },
+    { id: 'R504', code: 'SJ2C-504', name: '洁净走廊' }
+  ]},
+  { id: 'W6', code: 'SJ2D', name: 'SJ2 4楼制剂车间', line: 'SJ2', rooms: [
+    { id: 'R601', code: 'SJ2D-601', name: '配液间' },
+    { id: 'R602', code: 'SJ2D-602', name: '灌装间' },
+    { id: 'R603', code: 'SJ2D-603', name: '包装间' },
+    { id: 'R604', code: 'SJ2D-604', name: '更衣室' },
+    { id: 'R605', code: 'SJ2D-605', name: '洁净走廊' }
+  ]},
+  { id: 'W7', code: 'SJ2E', name: 'SJ2 原液车间', line: 'SJ2', rooms: [
+    { id: 'R701', code: 'SJ2E-701', name: '发酵间' },
+    { id: 'R702', code: 'SJ2E-702', name: '纯化间' },
+    { id: 'R703', code: 'SJ2E-703', name: '配液间' },
+    { id: 'R704', code: 'SJ2E-704', name: '更衣室' },
+    { id: 'R705', code: 'SJ2E-705', name: '洁净走廊' }
+  ]}
+];
+
+/* ---------- 状态 ---------- */
+/* 测试钩子：单文件离线原型，暴露状态对象便于自动化回归（不影响业务逻辑） */
+let S = {
+  role: 'inspector',
+  page: 'tasks',
+  sub: {},
+  data: null,
+  sheet: null,
+  filter: 'all',
+  period: 'month',
+  lines: [],          // 产线多选；空数组 = 全部产线
+  lineOpen: false,
+  catOpen: false,
+  picked: [],
+  mineOnly: false
+};
+
+const D = () => S.data;
+const wsOf = id => D().workshops.find(w => w.id === id);
+const roomOf = (wsId, roomId) => {
+  const w = wsOf(wsId);
+  return w ? w.rooms.find(r => r.id === roomId) : null;
+};
+const taskOf = id => D().tasks.find(t => t.id === id);
+const findOf = id => D().findings.find(f => f.id === id);
+const me = () => STAFF[S.role];
+const month = () => monthStr();
+
+/* ---------- 存储 ---------- */
+/* 云端同步（上线测试模式）：同一链接的所有用户共享一份数据
+   - /api/data GET 拉取 { rev, data }，POST 带 rev 乐观锁提交，冲突时以服务端为准
+   - file:// 或接口不可用时自动降级为本地模式（仅存本机 localStorage） */
+const CLOUD = { on: false, rev: 0, pushing: false, pending: false, timer: null, err: false };
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { console.warn('存储失败', e); }
+  if (CLOUD.on) cloudPush();
+}
+function cloudInit() {
+  if (typeof fetch !== 'function' || !/^https?:$/.test(location.protocol)) return Promise.resolve(false);
+  return fetch('/api/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => {
+      // 服务端尚无有效数据（首次上线）→ 用本地种子数据初始化服务端
+      if (!j || typeof j.rev !== 'number' || !j.data
+        || !Array.isArray(j.data.workshops) || !j.data.workshops.length) {
+        CLOUD.on = true; CLOUD.rev = j && typeof j.rev === 'number' ? j.rev : 0;
+        persist();
+        CLOUD.timer = setInterval(cloudPoll, 4000);
+        return true;
+      }
+      CLOUD.on = true; CLOUD.rev = j.rev;
+      S.data = j.data;
+      if (!S.data.accounts) S.data.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+      if (!S.data.roleLog) S.data.roleLog = [];
+      if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
+      try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { /* 本地缓存失败可忽略 */ }
+      CLOUD.timer = setInterval(cloudPoll, 4000);
+      return true;
+    })
+    .catch(() => false);
+}
+function cloudPush() {
+  if (CLOUD.pushing) { CLOUD.pending = true; return; }
+  CLOUD.pushing = true;
+  fetch('/api/data', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rev: CLOUD.rev, data: D() })
+  }).then(r => r.json().then(j => ({ ok: r.ok, j }))).then(({ ok, j }) => {
+    if (ok && typeof j.rev === 'number') { CLOUD.rev = j.rev; CLOUD.err = false; }
+    else if (j && typeof j.rev === 'number' && j.data) {
+      // 冲突（他人已先提交）：以服务端最新版本为准
+      CLOUD.rev = j.rev; S.data = j.data;
+      if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
+      toast('数据已被其他用户更新，已同步到最新版本');
+      render();
+    }
+  }).catch(() => { CLOUD.err = true; })
+    .finally(() => { CLOUD.pushing = false; if (CLOUD.pending) { CLOUD.pending = false; cloudPush(); } });
+}
+function cloudPoll() {
+  if (!CLOUD.on || CLOUD.pushing) return;
+  fetch('/api/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => {
+      if (j && typeof j.rev === 'number' && j.rev !== CLOUD.rev && j.data) {
+        CLOUD.rev = j.rev; S.data = j.data;
+        if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
+        render();
+      }
+    }).catch(() => { /* 下一次轮询重试 */ });
+}
+function restore() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      if (o && Array.isArray(o.tasks) && Array.isArray(o.workshops) && o.workshops.length) return o;
+    }
+  } catch (e) { console.warn('读取失败', e); }
+  return null;
+}
+
+/* ---------- 派生逻辑 ---------- */
+function findingsOfTask(tid) { return D().findings.filter(f => f.taskId === tid); }
+function taskStatus(t) {
+  const fs = findingsOfTask(t.id);
+  if (t.status === 'pending' || t.status === 'doing') return t.status;
+  if (!fs.length) return 'closed';
+  if (fs.every(f => f.status === 'replied')) return 'closed';
+  if (fs.some(f => f.status === 'pending' || f.status === 'returned')) {
+    return fs.some(f => f.status === 'confirmed' || f.status === 'replied') ? 'processing' : 'submitted';
+  }
+  return 'processing';
+}
+function roomsChecked(t) {
+  const st = t.rooms || {};
+  return Object.keys(st).filter(k => st[k].checked).length;
+}
+function replyDueLabel(f) {
+  if (!f.replyDue || f.status !== 'confirmed') return '';
+  const d = daysBetween(todayStr(), f.replyDue);
+  if (d < 0) return `已超期 ${-d} 天`;
+  if (d === 0) return '今日到期';
+  return `剩余 ${d} 天`;
+}
+function overdue(f) { return f.status === 'confirmed' && f.replyDue && f.replyDue < todayStr(); }
+
+function monthCoverage() {
+  const m = month();
+  const wss = D().workshops;
+  const submitted = wss.filter(w => D().tasks.some(t => t.month === m && t.workshopId === w.id && t.status !== 'pending' && t.status !== 'doing'));
+  return { total: wss.length, done: submitted.length, list: wss.map(w => {
+    const t = D().tasks.find(x => x.month === m && x.workshopId === w.id);
+    return { w, t, ok: !!t && t.status !== 'pending' && t.status !== 'doing' };
+  }) };
+}
+
+/* ---------- 种子数据 ---------- */
+function seed() {
+  const m = month();
+  const workshops = JSON.parse(JSON.stringify(DEFAULT_WORKSHOPS));
+  const tasks = [];
+  const findings = [];
+
+  const mkTask = (wsId, assignee, status, visitDay, dueDay) => {
+    const w = workshops.find(x => x.id === wsId);
+    const rooms = {};
+    w.rooms.forEach(r => { rooms[r.id] = { checked: true, noIssue: true, at: `${m}-${pad(visitDay)} 09:20` }; });
+    const t = {
+      id: `T-${m.replace('-', '')}-${w.code}`,
+      month: m, workshopId: wsId, assignee,
+      due: `${m}-${pad(dueDay)}`, visitAt: `${m}-${pad(visitDay)} 09:20`,
+      createdAt: `${m}-01 08:00`, createdBy: '系统',
+      status, rooms, note: '',
+      history: [{ at: `${m}-01 08:00`, by: '系统', act: '创建并分配', note: `指派给 ${assignee}，期限 ${m}-${pad(dueDay)}` }]
+    };
+    if (status === 'pending') { t.rooms = {}; t.visitAt = ''; }
+    tasks.push(t);
+    return t;
+  };
+  const mkFind = (t, wsId, roomId, title, desc, level, status, extra) => {
+    const f = Object.assign({
+      id: 'F-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+      taskId: t.id, workshopId: wsId, roomId,
+      title, desc, level, status, photos: [],
+      foundBy: t.assignee, foundAt: t.visitAt,
+      confirmBy: null, confirmAt: null, returnNote: '',
+      reply: null, replyDue: null
+    }, extra || {});
+    findings.push(f);
+    if (t.rooms[roomId]) t.rooms[roomId].noIssue = false;
+    return f;
+  };
+
+  // W1 C7 制剂 · 已提交待确认
+  const t1 = mkTask('W1', '张伟', 'submitted', 8, 31);
+  mkFind(t1, 'W1', 'R102', '传递窗密封条老化破损',
+    'C7-102 灌装间与 B 级走廊之间的传递窗密封条出现约 6cm 裂纹，关闭后无法形成有效密封，存在压差失衡与交叉污染风险。现场已暂停该传递窗使用并挂待维修标识。',
+    'critical', 'pending');
+
+  // W2 SJ1 原液 · 已确认待回复（明日到期）
+  const t2 = mkTask('W2', '张伟', 'processing', 6, 31);
+  mkFind(t2, 'W2', 'R202', '纯化间地面有明显积液',
+    'SJ1-202 纯化间层析设备北侧地面存在约 30cm×50cm 积液，地漏排水缓慢，岗位清洁记录显示已完成但现场未干燥，存在微生物滋生风险。',
+    'minor', 'confirmed', {
+      confirmBy: '陈晓', confirmAt: `${m}-07 10:30`,
+      replyDue: addDays(1)
+    });
+
+  // W3 SJ2 ADC 原液 · 待巡检（含改派留痕）
+  const t3 = mkTask('W3', '张伟', 'pending', 21, 31);
+  t3.history.push({ at: `${m}-05 09:20`, by: '陈晓', act: '调整任务', note: '巡检人 李静 → 张伟' });
+
+  // W4 SJ2 ADC 制剂 · 已回复闭环
+  const t4 = mkTask('W4', '李静', 'closed', 10, 31);
+  mkFind(t4, 'W4', 'R403', '轧盖机防护罩固定螺栓缺失',
+    'SJ2B-403 轧盖间 2 号轧盖机防护罩右侧 2 颗固定螺栓缺失，防护罩可手动掀动，存在人员机械伤害风险。',
+    'major', 'replied', {
+      confirmBy: '陈晓', confirmAt: `${m}-11 09:15`,
+      replyDue: `${m}-18`,
+      reply: { owner: '王强', measures: '已补装同规格不锈钢螺栓并做扭矩校验，同步排查其余 5 台轧盖机防护罩固定情况，全部正常。', planDate: `${m}-13`, at: `${m}-12 16:40` }
+    });
+
+  // W5 SJ2 细胞库 · 已确认待回复（已超期）
+  const t5 = mkTask('W5', '张伟', 'processing', 5, 31);
+  mkFind(t5, 'W5', 'R501', '液氮罐温度高于报警限值',
+    'SJ2C-501 液氮存储间 3 号液氮罐温度记录仪显示 -178℃，高于 -190℃ 内控报警限，现场液位计显示 42%，疑似补液不及时。',
+    'critical', 'confirmed', {
+      confirmBy: '陈晓', confirmAt: `${m}-06 11:00`,
+      replyDue: addDays(-2)
+    });
+
+  // W6 SJ2 4楼制剂 · 已提交待确认
+  const t6 = mkTask('W6', '李静', 'submitted', 14, 31);
+  mkFind(t6, 'W6', 'R601', '配液罐搅拌轴密封处有物料残留',
+    'SJ2D-601 配液间 3 号配液罐搅拌轴机械密封下方可见浅黄色物料残留，清洁后未复检，怀疑清洁 SOP 执行不到位。',
+    'major', 'pending');
+
+  // W7 SJ2 原液 · 已巡检待确认（王强分管车间，确认后由王强负责整改回复）
+  const t7 = mkTask('W7', '张伟', 'submitted', 18, 31);
+  mkFind(t7, 'W7', 'R702', '纯化间压差表读数波动超限',
+    'SJ2E-702 纯化间与相邻走廊压差表读数在 15 分钟内由 12Pa 波动至 6Pa，低于设计要求，疑似送风阀执行器动作不稳，存在气流逆转与交叉污染风险。',
+    'major', 'pending');
+  t7.history.push({ at: `${m}-03 14:10`, by: '陈晓', act: '调整任务', note: '巡检人 周敏 → 张伟' });
+
+  return {
+    workshops, tasks, findings,
+    accounts: JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS)),
+    roleLog: [],
+    settings: { freq: 1, replyDays: 7 },
+    drafts: { find: null, reply: {} },
+    seq: { task: 7, find: findings.length }
+  };
+}
+
+/* ---------- 初始化 ---------- */
+function boot() {
+  const stored = restore();
+  S.data = stored || seed();
+  // 兼容旧版本本地数据：补齐账号表与变更日志
+  if (!S.data.accounts) S.data.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+  if (!S.data.roleLog) S.data.roleLog = [];
+  if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
+  if (!stored) persist();
+  el('sb-time').textContent = timeStr(new Date());
+  render();
+  // 云端同步：http(s) 环境下拉取共享数据并开启轮询（本地 file:// 打开时自动降级）
+  cloudInit().then(on => { if (on) render(); });
+  // 登录提醒：按登录账号计算待办，原型内 toast 提示（正式环境经钉钉工作通知推送）
+  setTimeout(() => {
+    const rn = myReminders().length;
+    const acc = (D().accounts || []).find(a => a.name === me().name);
+    if (rn) toast(`欢迎回来，${me().name}${acc ? '（' + acc.emp + '）' : ''}，有 ${rn} 条待办提醒已推送到你的账号`);
+    else if (acc) toast(`欢迎回来，${me().name}（${acc.emp}），当前无超期待办`);
+  }, 400);
+}
+
+/* ============================================================
+   导航
+   ============================================================ */
+const PAGES = {
+  tasks: { title: '巡检任务', tab: true },
+  records: { title: '巡检记录', tab: true },
+  confirm: { title: '发现项确认', tab: true },
+  replies: { title: '整改回复', tab: true },
+  stats: { title: '数据统计', tab: true },
+  me: { title: '我的', tab: true },
+  wdetail: { title: '任务详情', back: 'tasks' },
+  room: { title: '房间巡检', back: 'wdetail' },
+  fdetail: { title: '发现项详情', back: 'records' },
+  config: { title: '系统配置', back: 'me' },
+  audit: { title: '审计追踪', back: 'me' }
+};
+
+function tabsFor(role) {
+  if (role === 'inspector') return [
+    { k: 'tasks', n: '任务', p: 'M9 11l3 3 8-8M20 12v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1h9' },
+    { k: 'records', n: '记录', p: 'M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zM9 8h6M9 12h6M9 16h4' },
+    { k: 'stats', n: '统计', p: 'M6 20V10M12 20V4M18 20v-7' },
+    { k: 'me', n: '我的', p: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
+  ];
+  if (role === 'compliance') return [
+    { k: 'confirm', n: '确认', p: 'M12 3l7 3v6c0 4.2-3 7.4-7 8.4-4-1-7-4.2-7-8.4V6l7-3zM9 12l2 2 4-4' },
+    { k: 'tasks', n: '任务', p: 'M8 4h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2zM9 9h6M9 13h4' },
+    { k: 'stats', n: '统计', p: 'M6 20V10M12 20V4M18 20v-7' },
+    { k: 'me', n: '我的', p: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
+  ];
+  if (role === 'preview') return [
+    { k: 'records', n: '记录', p: 'M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zM9 8h6M9 12h6M9 16h4' },
+    { k: 'stats', n: '统计', p: 'M6 20V10M12 20V4M18 20v-7' },
+    { k: 'me', n: '我的', p: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
+  ];
+  return [
+    { k: 'replies', n: '待回复', p: 'M21 12a8 8 0 01-8 8H7l-4 3v-7a8 8 0 118-8h10z' },
+    { k: 'records', n: '记录', p: 'M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zM9 8h6M9 12h6' },
+    { k: 'stats', n: '统计', p: 'M6 20V10M12 20V4M18 20v-7' },
+    { k: 'me', n: '我的', p: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
+  ];
+}
+
+function badgeOf(k) {
+  if (k === 'confirm' && S.role === 'compliance') return D().findings.filter(f => f.status === 'pending').length;
+  if (k === 'replies' && S.role === 'production') return D().findings.filter(f => f.status === 'confirmed').length;
+  if (k === 'tasks' && S.role === 'inspector') return D().tasks.filter(t => t.month === month() && t.assignee === me().name && ['pending', 'doing'].indexOf(taskStatus(t)) >= 0).length;
+  return 0;
+}
+
+function renderNav() {
+  const p = PAGES[S.page] || PAGES.tasks;
+  const r = ROLES[S.role];
+  const isTab = !!p.tab;
+  const back = isTab ? '' : `<button class="nav-btn" data-act="back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>`;
+  const rn = myReminders().length;
+  el('nav').innerHTML = `
+  <div class="nav-in">
+    ${back}
+    <div class="nav-title">${esc(p.title)}</div>
+    <button class="nav-btn" data-act="remind" style="position:relative;margin-right:2px" title="我的提醒">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      ${rn ? `<span style="position:absolute;top:1px;right:1px;min-width:15px;height:15px;border-radius:8px;
+        background:var(--red);color:#fff;font-size:9.5px;font-weight:700;display:flex;align-items:center;
+        justify-content:center;padding:0 3px;border:1.5px solid #fff">${rn > 9 ? '9+' : rn}</span>` : ''}
+    </button>
+    <div class="role-pill ${r.cls}" data-act="roleSheet"><i></i>${r.name}
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+  </div>`;
+}
+
+function renderTabbar() {
+  const isTab = !!(PAGES[S.page] || {}).tab;
+  if (!isTab) { el('tabbar').style.display = 'none'; return; }
+  el('tabbar').style.display = 'flex';
+  el('tabbar').innerHTML = tabsFor(S.role).map(t => {
+    const n = badgeOf(t.k);
+    return `<button class="tab ${S.page === t.k ? 'on' : ''}" data-act="tab" data-p="${t.k}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${t.p}"/></svg>
+      ${n ? `<span class="dot">${n}</span>` : ''}
+      <span>${t.n}</span>
+    </button>`;
+  }).join('');
+}
+
+/* ============================================================
+   任务列表（三角色共用，视图不同）
+   ============================================================ */
+function renderTasks() {
+  const m = month();
+  let list = D().tasks.filter(t => t.month === m);
+  if (S.role === 'inspector') list = list.filter(t => t.assignee === me().name || t.createdBy === me().name);
+  if (S.role === 'production') list = list.filter(t => findingsOfTask(t.id).some(f => f.status !== 'pending' && f.status !== 'returned'));
+  const cov = monthCoverage();
+
+  // 巡检人：待执行只算自己负责的；「我分配的」算自己创建且指派给同事的
+  const myOpen = D().tasks.filter(t => t.month === m && t.assignee === me().name && ['pending', 'doing'].indexOf(taskStatus(t)) >= 0).length;
+  const iAssigned = D().tasks.filter(t => t.month === m && t.createdBy === me().name && t.assignee !== me().name).length;
+  const myFinds = D().findings.filter(f => f.foundBy === me().name).length;
+  const myPendingConfirm = D().findings.filter(f => f.status === 'pending').length;
+  const myWaitReply = D().findings.filter(f => f.status === 'confirmed').length;
+
+  const heroCls = S.role === 'inspector' ? '' : S.role === 'compliance' ? 'com' : S.role === 'preview' ? 'prev' : 'pro';
+  const heroTitle = S.role === 'inspector' ? '本月巡检任务' : S.role === 'compliance' ? '巡检执行监控'
+    : S.role === 'preview' ? '巡检数据（只读预览）' : '整改回复总览';
+  const heroSub = S.role === 'inspector' ? `${me().dept} · ${me().name}`
+    : S.role === 'compliance' ? '质量保证部 · 合规管理'
+    : S.role === 'preview' ? `${me().dept} · 只读` : '生产制造部 · 整改回复人';
+  const pct = cov.total ? Math.round(cov.done / cov.total * 100) : 0;
+  const C = 2 * Math.PI * 33;
+
+  return `
+  <div class="hero ${heroCls}">
+    <div class="hero-top" style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
+      <div>
+        <div class="hero-date">${new Date().getFullYear()}年${new Date().getMonth() + 1}月 · 共 ${cov.total} 个车间</div>
+        <div class="hero-h">${heroTitle}</div>
+        <div class="hero-sub">${heroSub}</div>
+      </div>
+      <div class="ring">
+        <svg width="78" height="78" viewBox="0 0 78 78">
+          <circle cx="39" cy="39" r="33" fill="none" stroke="#D5E4E0" stroke-width="7"/>
+          <circle cx="39" cy="39" r="33" fill="none" stroke="${S.role === 'compliance' ? '#2563C9' : S.role === 'production' ? '#C77A1E' : '#0F8378'}"
+            stroke-width="7" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}"
+            stroke-dashoffset="${(C * (1 - pct / 100)).toFixed(1)}"/>
+        </svg>
+        <div class="ring-num">${pct}%<small>${cov.done}/${cov.total}</small></div>
+      </div>
+    </div>
+    <div class="hero-stats">
+      ${S.role === 'inspector' ? `
+        <div class="hs"><b style="color:${myOpen ? '#BF7A12' : '#0F1E28'}">${myOpen}</b><span>待执行</span></div>
+        <div class="hs"><b style="color:${iAssigned ? '#2563C9' : '#0F1E28'}">${iAssigned}</b><span>我分配的</span></div>
+        <div class="hs"><b style="color:${myFinds ? '#D33F3F' : '#0F1E28'}">${myFinds}</b><span>我的发现项</span></div>`
+      : S.role === 'compliance' ? `
+        <div class="hs"><b style="color:${myPendingConfirm ? '#BF7A12' : '#0F1E28'}">${myPendingConfirm}</b><span>待确认</span></div>
+        <div class="hs"><b style="color:${myWaitReply ? '#2563C9' : '#0F1E28'}">${myWaitReply}</b><span>待生产回复</span></div>
+        <div class="hs"><b style="color:${D().findings.filter(f => overdue(f)).length ? '#D33F3F' : '#0F1E28'}">${D().findings.filter(f => overdue(f)).length}</b><span>已超期</span></div>`
+      : `
+        <div class="hs"><b style="color:${myWaitReply ? '#C77A1E' : '#0F1E28'}">${myWaitReply}</b><span>待回复</span></div>
+        <div class="hs"><b style="color:${D().findings.filter(f => overdue(f)).length ? '#D33F3F' : '#0F1E28'}">${D().findings.filter(f => overdue(f)).length}</b><span>已超期</span></div>
+        <div class="hs"><b>${D().findings.filter(f => f.status === 'replied').length}</b><span>已回复</span></div>`}
+    </div>
+  </div>
+
+  ${S.role !== 'production' ? `
+  <div class="sec-title"><h3>本月车间覆盖</h3><span>每月至少 1 次</span></div>
+  <div class="card" style="padding:10px 12px">
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      ${cov.list.map(c => `
+        <span class="tag ${c.ok ? 'ok' : c.t ? 'warn' : 'gray'}" style="font-size:10px">
+          ${c.ok ? '✓' : c.t ? '·' : '!'} ${esc(c.w.name)}
+        </span>`).join('')}
+    </div>
+    <div class="tiny" style="margin-top:9px;padding-top:8px;border-top:1px dashed var(--line)">
+      未巡检车间：${cov.list.filter(c => !c.ok).map(c => esc(c.w.name)).join('、') || '无，本月全覆盖'}
+    </div>
+  </div>` : ''}
+
+  <div class="sec-title">
+    <h3>${S.role === 'inspector' ? '我的巡检任务' : '全部巡检任务'}</h3>
+    <span class="row" style="gap:10px;align-items:center">
+      ${can('manageData') ? '<span data-act="goConfig" style="color:var(--blue);font-weight:600;cursor:pointer;font-size:11px">管理车间 / 房间 ›</span>' : ''}
+      <span>${list.length} 个</span>
+    </span>
+  </div>
+  ${can('assignTask') ? `<button class="btn btn-line" style="width:100%;margin-bottom:9px;padding:9px;font-size:12.5px" data-act="newTask">
+    + ${S.role === 'inspector' ? '分配巡检任务（可指派给自己或组内同事）' : '新建 / 干预巡检任务'}</button>` : ''}
+  ${list.length ? list.sort((a, b) => {
+    const order = { pending: 0, doing: 1, submitted: 2, processing: 3, closed: 4 };
+    return order[taskStatus(a)] - order[taskStatus(b)];
+  }).map(t => {
+    const w = wsOf(t.workshopId);
+    const st = taskStatus(t);
+    const fs = findingsOfTask(t.id);
+    const checked = roomsChecked(t);
+    const total = w.rooms.length;
+    const p = total ? Math.round(checked / total * 100) : 0;
+    return `
+    <div class="tcard st-${st}" data-act="wdetail" data-id="${t.id}">
+      <div class="tc-h">
+        <div>
+          <div class="tc-name">${esc(w.name)}<span class="tc-code">${w.code}</span></div>
+          <div class="tc-meta">
+            <span>指派 ${esc(t.assignee)}</span>
+            ${t.assignee !== me().name && t.createdBy === me().name ? '<span style="color:var(--blue);font-weight:600">我分配</span>' : ''}
+            <span style="color:${t.due < todayStr() && st !== 'closed' ? 'var(--red);font-weight:600' : 'inherit'}">期限 ${md(t.due)}</span>
+            ${fs.length ? `<span style="color:var(--red);font-weight:600">发现 ${fs.length} 项</span>` : ''}
+          </div>
+        </div>
+        <span class="tag ${TASK_ST[st].cls}">${TASK_ST[st].name}</span>
+      </div>
+      <div class="tc-bar"><i style="width:${p}%;background:${st === 'closed' ? '#12825A' : st === 'submitted' ? '#BF7A12' : '#0F8378'}"></i></div>
+      <div class="tiny" style="margin-top:6px">房间进度 ${checked}/${total}${t.visitAt ? ' · 巡检于 ' + md(t.visitAt) : ''}</div>
+    </div>`;
+  }).join('') : `<div class="empty">
+    <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 4h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2zM9 9h6"/></svg>
+    <b>本月暂无任务</b>${S.role === 'inspector' ? '点击上方按钮给自己或组内同事分配巡检任务'
+      : S.role === 'compliance' ? '点击上方按钮新建巡检任务' : '任务由合规管理与巡检人安排'}
+  </div>`}`;
+}
+
+/* ============================================================
+   任务详情
+   ============================================================ */
+function renderWDetail() {
+  const t = taskOf(S.sub.taskId);
+  if (!t) return '<div class="empty"><b>任务不存在</b></div>';
+  const w = wsOf(t.workshopId);
+  const st = taskStatus(t);
+  const fs = findingsOfTask(t.id);
+  const checked = roomsChecked(t);
+  const canAssign = can('reassign', t);
+  const canDelete = can('withdraw', t);
+  const canInspect = can('inspect', t);
+
+  return `
+  <div class="dt-hero">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="tiny">巡检任务编号</div>
+        <div style="font-size:14px;font-weight:700;font-family:ui-monospace,Menlo,monospace;margin-top:2px">${t.id}</div>
+      </div>
+      <span class="tag ${TASK_ST[st].cls}">${TASK_ST[st].name}</span>
+    </div>
+    <div style="height:1px;background:var(--line);margin:12px 0 4px"></div>
+    <div class="kv"><span>车间</span><span>${esc(w.name)} · ${w.rooms.length} 个房间</span></div>
+    <div class="kv"><span>指派巡检人</span><span>${esc(t.assignee)}</span></div>
+    <div class="kv"><span>任务期限</span><span>${t.due}${t.due < todayStr() && st !== 'closed' ? ' <em style="color:var(--red);font-style:normal">已逾期</em>' : ''}</span></div>
+    <div class="kv"><span>巡检时间</span><span>${t.visitAt || '尚未开始'}</span></div>
+    <div class="kv"><span>房间进度</span><span>${checked}/${w.rooms.length} 已检查</span></div>
+    <div class="kv"><span>发现项</span><span style="color:${fs.length ? 'var(--red)' : 'inherit'}">${fs.length} 项</span></div>
+  </div>
+
+  ${canAssign || canDelete ? `
+  <div class="row" style="gap:8px;margin-bottom:4px">
+    ${canAssign ? `<button class="btn btn-line btn-sm" style="flex:1" data-act="assignTask" data-id="${t.id}">
+      ${st === 'doing' ? '改派 / 改期' : '改派 / 改期'}</button>` : ''}
+    ${canDelete ? `<button class="btn btn-line btn-sm" style="flex:1;color:var(--red)" data-act="delTask" data-id="${t.id}">
+      ${st === 'pending' ? '撤回任务' : '删除任务'}</button>` : ''}
+  </div>` : ''}
+
+  <div class="sec-title"><h3>房间清单</h3><span>点击进入房间登记</span></div>
+  <div class="room-grid">
+    ${w.rooms.map(r => {
+      const rs = (t.rooms || {})[r.id] || {};
+      const rf = fs.filter(f => f.roomId === r.id);
+      return `
+      <div class="room-cell ${rs.checked ? 'checked' : ''} ${rf.length ? 'hasfind' : ''}"
+        data-act="${canInspect ? 'room' : 'roomView'}" data-id="${r.id}">
+        ${rf.length ? `<span class="rc-badge">${rf.length}</span>` : ''}
+        <div class="rc-code">${r.code}</div>
+        <div class="rc-name">${esc(r.name)}</div>
+        <div class="rc-st"><i class="pdot"></i>${rs.checked ? (rf.length ? `${rf.length} 项发现` : '无异常') : '未检查'}</div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  ${fs.length ? `
+  <div class="sec-title"><h3>本次发现项</h3><span>${fs.length} 项</span></div>
+  ${fs.map(f => fcard(f)).join('')}` : ''}
+
+  ${canInspect ? `<button class="btn btn-pri" style="width:100%;margin-top:14px" data-act="submitTask" data-id="${t.id}">
+    提交巡检记录（${checked}/${w.rooms.length} 房间已检查）</button>` : ''}
+
+  ${can('confirmFind', fs.find(f => f.status === 'pending')) && st === 'submitted' ? `<button class="btn btn-pri" style="width:100%;margin-top:14px" data-act="tab" data-p="confirm">
+    前往确认 ${fs.filter(f => f.status === 'pending' && can('confirmFind', f)).length} 项发现项</button>` : ''}
+
+  ${(t.history || []).length ? `
+  <div class="sec-title"><h3>任务变更记录</h3><span>${t.history.length} 条</span></div>
+  <div class="card" style="padding:4px 14px">
+    ${t.history.slice().reverse().map((h, i, arr) => `
+      <div style="padding:9px 0;${i < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''}">
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <span style="font-size:12.5px;font-weight:650">${esc(h.act)}</span>
+          <span class="tiny" style="font-family:ui-monospace,Menlo,monospace">${esc(h.at)}</span>
+        </div>
+        <div class="tiny" style="margin-top:3px;line-height:1.6">${esc(h.by)} · ${esc(h.note || '')}</div>
+      </div>`).join('')}
+  </div>` : ''}
+
+  <div class="tiny" style="margin:14px 4px;line-height:1.75">
+    巡检人需逐房间检查并标记；提交后所有发现项进入合规确认环节，合规确认后由整改回复人在 ${D().settings.replyDays} 天内回复整改措施及责任人。
+  </div>`;
+}
+
+function fcard(f, opts) {
+  const w = wsOf(f.workshopId);
+  const r = roomOf(f.workshopId, f.roomId);
+  const st = FIND_ST[f.status];
+  const od = overdue(f);
+  return `
+  <div class="fcard lv-${f.level}" data-act="fdetail" data-id="${f.id}">
+    <div class="fc-h">
+      <div class="fc-t">${esc(f.title)}</div>
+      <span class="tag ${LEVELS[f.level].cls}">${LEVELS[f.level].name}</span>${catTags(f)}
+    </div>
+    <div class="fc-loc">
+      <span>${esc(w.name)}</span><span>·</span><span>${r ? r.code : ''} ${r ? r.name : ''}</span>
+    </div>
+    ${f.photos && f.photos.length ? `<div class="photos">${f.photos.map(u => `<img src="${u}" alt="现场照片">`).join('')}</div>` : ''}
+    <div class="fc-foot">
+      <span>${esc(f.foundBy)} · ${md(f.foundAt)}</span>
+      <span class="tag ${od ? 'danger' : st.cls}">${od ? '超期未回复' : st.name}${f.status === 'confirmed' && !od ? ' · ' + replyDueLabel(f) : ''}</span>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   房间巡检
+   ============================================================ */
+function renderRoom() {
+  const t = taskOf(S.sub.taskId);
+  const w = wsOf(t.workshopId);
+  const r = roomOf(t.workshopId, S.sub.roomId);
+  if (!r) return '<div class="empty"><b>房间不存在</b></div>';
+  const rs = (t.rooms || {})[r.id] || {};
+  const fs = D().findings.filter(f => f.taskId === t.id && f.roomId === r.id);
+  const canEdit = can('inspect', t);
+
+  return `
+  <div class="pt-head card">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:15.5px;font-weight:700">${esc(r.name)}</div>
+        <div class="tiny" style="margin-top:5px">${r.code} · ${esc(w.name)}</div>
+      </div>
+      <span class="tag ${rs.checked ? (fs.length ? 'danger' : 'ok') : 'gray'}">
+        ${rs.checked ? (fs.length ? `发现 ${fs.length} 项` : '无异常') : '未检查'}</span>
+    </div>
+    ${rs.checked && rs.at ? `<div class="tiny" style="margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)">检查时间 ${rs.at}</div>` : ''}
+  </div>
+
+  <div class="sec-title"><h3>本房间发现项</h3><span>${fs.length} 项</span></div>
+  ${fs.length ? fs.map(f => fcard(f)).join('') : `
+  <div class="card" style="text-align:center;padding:26px 16px">
+    <div style="font-size:13px;font-weight:600;color:var(--ink2)">暂未登记问题</div>
+    <div class="tiny" style="margin-top:5px">如现场无异常，可点击下方「标记本房间无异常」</div>
+  </div>`}
+
+  ${canEdit ? `
+  <div class="row" style="gap:9px;margin-top:14px">
+    <button class="btn btn-line" style="flex:1" data-act="markOk" data-room="${r.id}">标记无异常</button>
+    <button class="btn btn-pri" style="flex:1.4" data-act="newFind" data-room="${r.id}">+ 登记发现项</button>
+  </div>` : `
+  <div class="tiny" style="margin-top:14px;text-align:center">当前角色无编辑权限</div>`}
+
+  <div class="tiny" style="margin:14px 4px;line-height:1.75">
+    发现项需描述具体现象与位置，并拍照留存；级别判定：重大（影响产品质量/患者安全）、中度（系统性风险）、微小（个别不规范）、建议（改进机会）。
+  </div>`;
+}
+
+/* ============================================================
+   记录列表（巡检人 / 生产）
+   ============================================================ */
+function renderRecords() {
+  let list = D().findings.slice();
+  if (S.role === 'inspector') list = list.filter(f => f.foundBy === me().name);
+  if (S.role === 'production') list = list.filter(f => (f.status === 'confirmed' || f.status === 'replied') && (!S.mineOnly || inMyShops(f)));
+  if (S.role === 'preview') list = list.filter(f => f.status === 'confirmed' || f.status === 'replied'); // 预览：仅已确认
+  if (S.role === 'compliance') list = list.filter(f => can('confirmFind', f) || f.status !== 'pending');
+  list.sort((a, b) => (b.foundAt || '').localeCompare(a.foundAt || ''));
+
+  const chips = [
+    { k: 'all', n: '全部' },
+    { k: 'pending', n: '待确认' },
+    { k: 'confirmed', n: '待回复' },
+    { k: 'replied', n: '已回复' }
+  ];
+  const shown = S.filter === 'all' ? list : list.filter(f => f.status === S.filter);
+
+  return `
+  <div class="card" style="padding:12px 14px;margin-bottom:2px">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div class="tiny">${S.role === 'inspector' ? '我登记的发现项' : '需生产处理的发现项'}</div>
+        <div style="font-size:20px;font-weight:750;margin-top:2px">${list.length}<span style="font-size:11px;font-weight:500;color:var(--ink3);margin-left:6px">项</span></div>
+      </div>
+      <div class="row" style="gap:6px">
+        <span class="tag danger">重大 ${list.filter(f => f.level === 'critical').length}</span>
+        <span class="tag warn">主要 ${list.filter(f => f.level === 'major').length}</span>
+      </div>
+    </div>
+  </div>
+  <div class="chips" style="display:flex;gap:7px;overflow-x:auto;padding:10px 14px;margin:0 -14px">
+    ${chips.map(c => `<button class="chip ${S.filter === c.k ? 'on' : ''}" data-act="filter" data-k="${c.k}"
+      style="border:1px solid ${S.filter === c.k ? 'var(--ink)' : 'var(--line)'};background:${S.filter === c.k ? 'var(--ink)' : '#fff'};
+      color:${S.filter === c.k ? '#fff' : 'var(--ink2)'};border-radius:999px;padding:6px 12px;font-size:11.5px;font-weight:600;white-space:nowrap;cursor:pointer;font-family:inherit">
+      ${c.n}</button>`).join('')}
+    ${S.role === 'production' && myShops().length ? `
+      <button class="chip ${S.mineOnly ? 'on' : ''}" data-act="mineOnly"
+        style="margin-left:auto;border:1px solid ${S.mineOnly ? 'var(--pri)' : 'var(--line)'};
+        background:${S.mineOnly ? 'var(--pri-l)' : '#fff'};color:${S.mineOnly ? 'var(--pri)' : 'var(--ink2)'};
+        border-radius:999px;padding:6px 12px;font-size:11.5px;font-weight:600;white-space:nowrap;cursor:pointer;font-family:inherit">
+        ${S.mineOnly ? '仅我的车间' : '全部车间'}</button>` : ''}
+  </div>
+  ${shown.length ? shown.map(f => fcard(f)).join('') : `<div class="empty"><b>暂无记录</b>切换筛选条件查看</div>`}`;
+}
+
+/* ============================================================
+   合规：待确认
+   ============================================================ */
+function renderConfirm() {
+  const allPending = D().findings.filter(f => f.status === 'pending');
+  // 全部待确认项均可操作（允许自审）；勾选状态用于批量确认
+  const pending = allPending.filter(f => can('confirmFind', f));
+  const confirmedToday = D().findings.filter(f => f.confirmAt && f.confirmAt.slice(0, 10) === todayStr());
+  const returned = D().findings.filter(f => f.status === 'returned');
+  const picked = S.picked || [];
+  const pickedValid = picked.filter(id => pending.some(f => f.id === id));
+  const allPicked = pending.length > 0 && pickedValid.length === pending.length;
+
+  return `
+  <div class="kpi-grid" style="margin-bottom:4px">
+    <div class="kpi"><b style="color:${pending.length ? '#BF7A12' : '#0F1E28'}">${pending.length}</b>
+      <span>待确认发现项</span><i style="background:var(--amber-l);color:var(--amber)">需审核</i></div>
+    <div class="kpi"><b>${confirmedToday.length}</b><span>今日已确认</span>
+      <i style="background:var(--green-l);color:var(--green)">已流转</i></div>
+  </div>
+
+  <div class="sec-title"><h3>待确认清单</h3><span>确认后转生产回复</span></div>
+  ${pending.length ? `
+  <div class="card" style="padding:10px 12px;margin-bottom:9px">
+    <div class="row" style="justify-content:space-between;gap:8px">
+      <button class="row" style="gap:7px;border:none;background:none;padding:0;cursor:pointer" data-act="pickAll">
+        <i style="width:17px;height:17px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+          border:1.5px solid ${allPicked ? '#0F8378' : '#C6D2D8'};background:${allPicked ? '#0F8378' : '#fff'};
+          color:#fff;font-size:11px;font-style:normal">${allPicked ? '✓' : ''}</i>
+        <span style="font-size:12.5px;font-weight:600;color:var(--ink2)">全选（${pickedValid.length}/${pending.length}）</span>
+      </button>
+      <button class="btn btn-pri btn-sm" style="flex:0 0 auto;padding:6px 12px" data-act="batchConfirm">
+        批量确认${pickedValid.length ? ' ' + pickedValid.length + ' 项' : ''}</button>
+    </div>
+  </div>` : ''}
+  ${pending.length ? pending.map(f => {
+    const on = pickedValid.indexOf(f.id) >= 0;
+    return `
+    <div class="tcard" style="padding:12px">
+      <div class="row" style="gap:9px;align-items:flex-start">
+        <i data-act="pickOne" data-id="${f.id}" style="width:17px;height:17px;border-radius:5px;flex:0 0 17px;margin-top:2px;
+          display:flex;align-items:center;justify-content:center;cursor:pointer;
+          border:1.5px solid ${on ? '#0F8378' : '#C6D2D8'};background:${on ? '#0F8378' : '#fff'};
+          color:#fff;font-size:11px;font-style:normal">${on ? '✓' : ''}</i>
+        <div style="flex:1;min-width:0">
+          <div class="fc-h">
+            <div class="fc-t">${esc(f.title)}</div>
+            <span class="tag ${LEVELS[f.level].cls}">${LEVELS[f.level].name}</span>${catTags(f)}
+          </div>
+          <div class="fc-loc"><span>${esc(wsOf(f.workshopId).name)}</span><span>·</span>
+            <span>${roomOf(f.workshopId, f.roomId).code} ${roomOf(f.workshopId, f.roomId).name}</span>
+            ${f.foundBy === me().name ? '<span class="tag gray" style="font-size:9px">本人登记</span>' : ''}</div>
+        </div>
+      </div>
+      <div class="tiny" style="margin-top:8px;line-height:1.65;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(f.desc)}</div>
+      ${f.photos && f.photos.length ? `<div class="photos">${f.photos.map(u => `<img src="${u}" alt="现场照片">`).join('')}</div>` : ''}
+      <div class="row" style="gap:8px;margin-top:10px">
+        <button class="btn btn-line btn-sm" style="flex:1" data-act="openConfirm" data-id="${f.id}">审核</button>
+        <button class="btn btn-pri btn-sm" style="flex:1" data-act="quickConfirm" data-id="${f.id}">确认通过</button>
+      </div>
+    </div>`;
+  }).join('') : `<div class="empty">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l7 3v6c0 4.2-3 7.4-7 8.4-4-1-7-4.2-7-8.4V6l7-3zM9 12l2 2 4-4"/></svg>
+      <b>没有待确认的发现项</b>巡检人提交后会出现在这里</div>`}
+
+  ${returned.length ? `
+  <div class="sec-title"><h3>已退回</h3><span>${returned.length} 项</span></div>
+  ${returned.map(f => fcard(f)).join('')}` : ''}`;
+}
+
+/* ============================================================
+   生产：待回复
+   ============================================================ */
+function renderReplies() {
+  const scope = (f) => !S.mineOnly || inMyShops(f);
+  const list = D().findings.filter(f => scope(f) && f.status === 'confirmed')
+    .sort((a, b) => (a.replyDue || '').localeCompare(b.replyDue || ''));
+  const done = D().findings.filter(f => scope(f) && f.status === 'replied');
+  const od = list.filter(overdue);
+  const days = D().settings.replyDays;
+
+  return `
+  <div class="hero pro">
+    <div class="hero-top" style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
+      <div>
+        <div class="hero-date">回复周期 ${days} 天（自合规确认起算）</div>
+        <div class="hero-h">待回复 ${list.length} 项</div>
+        <div class="hero-sub">${od.length ? `其中 ${od.length} 项已超期，请优先处理` : '全部在期限内，请按时回复'}</div>
+      </div>
+      <div class="ring">
+        <svg width="78" height="78" viewBox="0 0 78 78">
+          <circle cx="39" cy="39" r="33" fill="none" stroke="#EFE0C6" stroke-width="7"/>
+          <circle cx="39" cy="39" r="33" fill="none" stroke="#C77A1E" stroke-width="7" stroke-linecap="round"
+            stroke-dasharray="${(2 * Math.PI * 33).toFixed(1)}"
+            stroke-dashoffset="${(2 * Math.PI * 33 * (1 - (done.length / Math.max(1, done.length + list.length)))).toFixed(1)}"/>
+        </svg>
+        <div class="ring-num">${done.length}/${done.length + list.length}<small>已回复</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-title"><h3>待回复清单</h3><span>按期限排序</span></div>
+  ${list.length ? list.map(f => `
+    <div class="fcard lv-${f.level}" data-act="fdetail" data-id="${f.id}">
+      <div class="fc-h">
+        <div class="fc-t">${esc(f.title)}</div>
+        <span class="tag ${overdue(f) ? 'danger' : LEVELS[f.level].cls}">${overdue(f) ? '已超期' : LEVELS[f.level].name}</span>
+      </div>
+      <div class="fc-loc"><span>${esc(wsOf(f.workshopId).name)}</span><span>·</span>
+        <span>${roomOf(f.workshopId, f.roomId).name}</span></div>
+      <div class="fc-foot" style="border-top:none;padding-top:4px;margin-top:6px">
+        <span>确认于 ${md(f.confirmAt || '')}</span>
+        <span style="color:${overdue(f) ? 'var(--red)' : 'var(--ink2)'};font-weight:600">${replyDueLabel(f)}</span>
+      </div>
+      ${f.autoOwner ? `<div class="tiny" style="margin-top:5px;color:var(--pri);font-weight:600">已自动分配给 ${esc(f.autoOwner)}</div>` : ''}
+      <button class="btn btn-pri btn-sm" style="width:100%;margin-top:9px" data-act="openReply" data-id="${f.id}">
+        填写整改回复与责任人</button>
+    </div>`).join('') : `<div class="empty">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 6L9 17l-5-5"/></svg>
+      <b>没有待回复的发现项</b>合规确认后会推送至生产</div>`}
+
+  ${done.length ? `
+  <div class="sec-title"><h3>近期已回复</h3><span>${done.length} 项</span></div>
+  ${done.slice(0, 5).map(f => `
+    <div class="fcard lv-${f.level}" data-act="fdetail" data-id="${f.id}">
+      <div class="fc-h"><div class="fc-t">${esc(f.title)}</div><span class="tag ok">已回复</span></div>
+      <div class="fc-foot" style="border-top:none;padding-top:4px;margin-top:4px">
+        <span>责任人 ${esc(f.reply ? f.reply.owner : '')}</span>
+        <span>${f.reply ? md(f.reply.at) : ''}</span>
+      </div>
+    </div>`).join('')}` : ''}`;
+}
+
+/* ============================================================
+   发现项详情
+   ============================================================ */
+function renderFDetail() {
+  const f = findOf(S.sub.findId);
+  if (!f) return '<div class="empty"><b>发现项不存在</b></div>';
+  const w = wsOf(f.workshopId);
+  const r = roomOf(f.workshopId, f.roomId);
+  const t = taskOf(f.taskId);
+  const st = FIND_ST[f.status];
+  const od = overdue(f);
+  const canConfirm = can('confirmFind', f);
+  const canReply = can('replyFind', f);
+  const canEditFind = can('fixFinding', f);
+
+  return `
+  <div class="dt-hero">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div style="flex:1">
+        <div class="row" style="gap:6px;margin-bottom:6px">
+          <span class="tag ${LEVELS[f.level].cls}">${LEVELS[f.level].name}</span>${catTags(f)}
+          <span class="tag ${od ? 'danger' : st.cls}">${od ? '超期未回复' : st.name}</span>
+        </div>
+        <div style="font-size:16px;font-weight:700;line-height:1.4">${esc(f.title)}</div>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--line);margin:12px 0 4px"></div>
+    <div class="kv"><span>车间</span><span>${esc(w.name)}</span></div>
+    <div class="kv"><span>房间</span><span>${r.code} ${esc(r.name)}</span></div>
+    <div class="kv"><span>发现人 / 时间</span><span>${esc(f.foundBy)} · ${f.foundAt}</span></div>
+    <div class="kv"><span>所属任务</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${f.taskId}</span></div>
+  </div>
+
+  <div class="sec-title"><h3>问题描述</h3><span></span></div>
+  <div class="card">
+    <div style="font-size:12.5px;line-height:1.8;color:var(--ink2)">${esc(f.desc)}</div>
+    ${f.photos && f.photos.length ? `<div class="photos" style="margin-top:11px">${f.photos.map(u => `<img src="${u}" alt="现场照片" style="width:72px;height:72px">`).join('')}</div>`
+      : '<div class="tiny" style="margin-top:10px">未上传现场照片</div>'}
+  </div>
+
+  ${f.status === 'returned' && f.returnNote ? `
+  <div class="card" style="margin-top:9px;border-color:#F2DEDE;background:#FFFCFC">
+    <div class="row" style="gap:6px;margin-bottom:6px"><span class="tag danger">合规退回</span></div>
+    <div class="tiny" style="line-height:1.7;color:var(--ink2)">${esc(f.returnNote)}</div>
+  </div>` : ''}
+
+  <div class="sec-title"><h3>处理进度</h3><span></span></div>
+  <div class="card">
+    <div class="timeline">
+      <div class="tl done">
+        <div class="tl-t">巡检人登记</div>
+        <div class="tl-d">${esc(f.foundBy)} · ${f.foundAt}<br>级别判定：${LEVELS[f.level].name}</div>
+      </div>
+      <div class="tl ${f.status !== 'pending' && f.status !== 'returned' ? 'done' : ''}">
+        <div class="tl-t">合规管理确认</div>
+        <div class="tl-d">${f.confirmAt ? `${esc(f.confirmBy)} · ${f.confirmAt}` : (f.status === 'returned' ? '已退回巡检人补充' : '等待合规审核')}</div>
+      </div>
+      <div class="tl ${f.status === 'replied' ? 'done' : ''}">
+        <div class="tl-t">生产整改回复</div>
+        <div class="tl-d">${f.reply ? `${esc(f.reply.owner)} · ${f.reply.at}<br>计划完成：${f.reply.planDate}` : (f.status === 'confirmed' ? `要求在 ${f.replyDue} 前回复（${replyDueLabel(f)}）` : '—')}</div>
+      </div>
+    </div>
+  </div>
+
+  ${f.reply ? `
+  <div class="sec-title"><h3>整改回复</h3><span>${md(f.reply.at)}</span></div>
+  <div class="card">
+    <div class="kv"><span>整改责任人</span><span>${esc(f.reply.owner)}</span></div>
+    <div class="kv"><span>计划完成</span><span>${f.reply.planDate}</span></div>
+    <div style="font-size:12.5px;line-height:1.8;color:var(--ink2);padding-top:9px">${esc(f.reply.measures)}</div>
+    ${f.reply.photos && f.reply.photos.length ? `<div class="up-wrap" style="margin-top:9px">
+      ${f.reply.photos.map(u => `<div class="up" style="border-style:solid;padding:0"><img src="${u}" alt="整改照片"></div>`).join('')}
+    </div>` : ''}
+  </div>` : ''}
+
+  ${canConfirm ? `
+  <div class="row" style="gap:9px;margin-top:16px">
+    <button class="btn btn-line" style="flex:1" data-act="openReturn" data-id="${f.id}">退回补充</button>
+    <button class="btn btn-pri" style="flex:1.5" data-act="quickConfirm" data-id="${f.id}">确认通过</button>
+  </div>` : ''}
+  ${canReply ? `
+  <button class="btn btn-pri" style="width:100%;margin-top:16px" data-act="openReply" data-id="${f.id}">填写整改回复与责任人</button>` : ''}
+  ${canEditFind ? `
+  <button class="btn btn-pri" style="width:100%;margin-top:16px" data-act="editFind" data-id="${f.id}">修改后重新提交</button>` : ''}
+  ${S.role === 'compliance' && f.status === 'pending' && f.foundBy === me().name ? `<div class="card tiny" style="margin-top:14px;line-height:1.7">
+    本项由你本人登记，确认后将记录确认人为你（${esc(me().name)}），并写入确认留痕。</div>` : ''}
+  <div class="tiny" style="margin:14px 4px;line-height:1.75">
+    记录不可删除，修改留痕。重大级别发现项需在 24 小时内完成合规确认并启动整改。
+  </div>`;
+}
+
+/* ============================================================
+   统计
+   ============================================================ */
+const PERIODS = { month: '本月', quarter: '本季度', year: '本年度' };
+/* 产线维度：车间上的 line 字段分组，车间可后续增删 */
+function lineList() {
+  const seen = [];
+  D().workshops.forEach(w => {
+    const l = w.line || w.code;
+    if (seen.indexOf(l) < 0) seen.push(l);
+  });
+  return seen;
+}
+function lineName(l) {
+  if (l === 'all') return '全部产线';
+  const ws = D().workshops.filter(w => (w.line || w.code) === l);
+  return ws.length === 1 ? ws[0].name : `${l}（${ws.length}个车间）`;
+}
+/* 当前产线多选下的可选车间：用于统计页的车间分布 */
+function scopeWs() {
+  const sel = S.lines || [];
+  return D().workshops.filter(w => !sel.length || sel.indexOf(w.line || w.code) >= 0);
+}
+/* 产线筛选按钮上的文案 */
+function lineSelLabel() {
+  const sel = (S.lines || []).filter(l => lineList().indexOf(l) >= 0);
+  if (!sel.length) return '全部产线';
+  return sel.length === 1 ? sel[0] : `已选 ${sel.length} 条产线`;
+}
+function inPeriod(d) {
+  if (!d) return false;
+  const today = todayStr();
+  if (S.period === 'quarter') {
+    const q = Math.floor((+today.slice(5, 7) - 1) / 3);
+    return d.slice(0, 4) === today.slice(0, 4) && Math.floor((+d.slice(5, 7) - 1) / 3) === q;
+  }
+  const n = S.period === 'year' ? 4 : 7;
+  return d.slice(0, n) === today.slice(0, n);
+}
+function periodCoverage() {
+  const today = todayStr();
+  const months = [];
+  if (S.period === 'month') months.push(today.slice(0, 7));
+  else if (S.period === 'quarter') {
+    const y = today.slice(0, 4), q = Math.floor((+today.slice(5, 7) - 1) / 3);
+    for (let i = 0; i < 3; i++) months.push(`${y}-${pad(q * 3 + i + 1)}`);
+  }
+  const inT = t => S.period === 'year' ? t.month.slice(0, 4) === today.slice(0, 4) : months.indexOf(t.month) >= 0;
+  const ws = scopeWs();
+  const list = ws.map(w => {
+    const t = D().tasks.find(t => t.workshopId === w.id && inT(t));
+    return { w, t, ok: !!t && t.status !== 'pending' && t.status !== 'doing' };
+  });
+  return { total: ws.length, done: list.filter(c => c.ok).length, list };
+}
+
+function renderStats() {
+  if (!S.period) S.period = 'month';
+  const lines = lineList();
+  // 兼容旧数据 / 失效产线清理
+  S.lines = (S.lines || []).filter(l => lines.indexOf(l) >= 0);
+  const wsIds = scopeWs().map(w => w.id);
+  const fs = D().findings.filter(f => inPeriod((f.foundAt || '').slice(0, 10)) && wsIds.indexOf(f.workshopId) >= 0);
+  const cov = periodCoverage();
+  const byLevel = { critical: 0, major: 0, minor: 0, advice: 0 };
+  fs.forEach(f => { byLevel[f.level] = (byLevel[f.level] || 0) + 1; });
+  const total = fs.length;
+
+  const byWs = scopeWs().map(w => ({ w, n: fs.filter(f => f.workshopId === w.id).length }))
+    .sort((a, b) => b.n - a.n);
+  const maxWs = Math.max(1, byWs[0] ? byWs[0].n : 1);
+
+  // 发现项分类统计（一条发现项可属多个分类，分类计数之和 ≥ 总数）
+  const catRows = CATEGORIES.map(c => ({ c, n: fs.filter(f => (f.cats || []).indexOf(c) >= 0).length }))
+    .sort((a, b) => b.n - a.n);
+  const unCat = fs.filter(f => !(f.cats || []).length).length;
+  if (unCat) catRows.push({ c: '未分类', n: unCat });
+  const maxCat = Math.max(1, catRows.length ? catRows[0].n : 1);
+
+  const replied = fs.filter(f => f.status === 'replied');
+  const overdueCnt = fs.filter(overdue).length;
+  const onTime = replied.filter(f => f.reply && f.replyDue && f.reply.at.slice(0, 10) <= f.replyDue).length;
+  const onTimeRate = replied.length ? Math.round(onTime / replied.length * 100) : 100;
+
+  const colors = { critical: '#D33F3F', major: '#E0A03A', minor: '#5B8DC9', advice: '#9AAAB8' };
+  const R = 50, C = 2 * Math.PI * R;
+  let off = 0;
+  const segs = Object.keys(LEVELS).map(k => {
+    const v = byLevel[k];
+    const len = total ? C * v / total : 0;
+    const s = v ? `<circle cx="64" cy="64" r="${R}" fill="none" stroke="${colors[k]}" stroke-width="17"
+      stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"
+      transform="rotate(-90 64 64)"/>` : '';
+    off += len;
+    return s;
+  }).join('');
+
+  const periodBar = `
+  <div class="row" style="gap:0;background:#EEF3F5;border-radius:10px;padding:3px;margin-bottom:12px">
+    ${Object.keys(PERIODS).map(k => `
+      <button data-act="statPeriod" data-k="${k}" style="flex:1;border:none;border-radius:8px;padding:7px 0;
+        font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;
+        ${S.period === k ? 'background:#fff;color:#0F8378;box-shadow:0 1px 4px rgba(15,30,40,.12)' : 'background:transparent;color:#7C9590'}">
+        ${PERIODS[k]}</button>`).join('')}
+  </div>`;
+
+  const lineDrop = `
+  <div style="position:relative;margin:-4px 0 12px">
+    <button data-act="lineDrop" style="width:100%;display:flex;align-items:center;gap:8px;
+      border:1px solid ${(S.lines || []).length ? 'var(--pri)' : 'var(--line)'};
+      background:${(S.lines || []).length ? 'var(--pri-l)' : '#fff'};
+      border-radius:10px;padding:9px 12px;cursor:pointer;font-family:inherit;text-align:left">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${(S.lines || []).length ? 'var(--pri)' : 'var(--ink2)'}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h.01M15 10h.01M9 14h.01M15 14h.01"/></svg>
+      <span style="flex:1;font-size:12.5px;font-weight:650;color:${(S.lines || []).length ? 'var(--pri)' : 'var(--ink)'}">产线：${esc(lineSelLabel())}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2.4" stroke-linecap="round"
+        style="transition:transform .15s;${S.lineOpen ? 'transform:rotate(180deg)' : ''}"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    ${S.lineOpen ? `
+    <div style="position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;background:#fff;
+      border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(15,30,40,.14);padding:6px">
+      <div class="tiny" style="padding:6px 10px 4px">可多选，统计口径为所选产线之和</div>
+      ${lines.map(l => {
+        const on = (S.lines || []).indexOf(l) >= 0;
+        const n = D().workshops.filter(w => (w.line || w.code) === l).length;
+        return `<div data-act="linePick" data-k="${esc(l)}" style="display:flex;align-items:center;gap:9px;
+          padding:9px 10px;border-radius:8px;cursor:pointer;${on ? 'background:#F2F9F7' : ''}">
+          <i style="width:17px;height:17px;border-radius:5px;flex:0 0 17px;display:flex;align-items:center;justify-content:center;
+            border:1.5px solid ${on ? '#0F8378' : '#C6D2D8'};background:${on ? '#0F8378' : '#fff'};color:#fff;font-size:11px;font-style:normal">${on ? '✓' : ''}</i>
+          <span style="flex:1;font-size:12.5px;font-weight:${on ? '650' : '500'};color:var(--ink)">${esc(l)}</span>
+          <span class="tiny">${n} 个车间</span>
+        </div>`;
+      }).join('')}
+      <div class="row" style="gap:8px;padding:7px 8px 5px;border-top:1px dashed var(--line);margin-top:4px">
+        <button class="btn btn-line btn-sm" style="flex:1" data-act="lineClear">全部产线</button>
+        <button class="btn btn-pri btn-sm" style="flex:1" data-act="lineDrop">完成</button>
+      </div>
+    </div>` : ''}
+    ${(S.lines || []).length ? `<div class="tiny" style="margin-top:7px">
+      当前口径：${esc((S.lines || []).join('、'))}，数据仅统计该 ${wsIds.length} 个车间的合计
+    </div>` : ''}
+  </div>`;
+
+  return `
+  ${periodBar}${lineDrop}
+  <div class="kpi-grid">
+    <div class="kpi"><b>${cov.done}/${cov.total}</b><span>${PERIODS[S.period]}车间覆盖</span>
+      <i style="background:var(--pri-l);color:var(--pri)">${cov.total ? Math.round(cov.done / cov.total * 100) : 0}%</i></div>
+    <div class="kpi"><b style="color:${total ? '#D33F3F' : '#0F1E28'}">${total}</b><span>发现项总数</span>
+      <i style="background:var(--amber-l);color:var(--amber)">重大 ${byLevel.critical}</i></div>
+    <div class="kpi"><b style="color:${overdueCnt ? '#D33F3F' : '#0F1E28'}">${overdueCnt}</b><span>超期未回复</span>
+      <i style="background:var(--red-l);color:var(--red)">需跟进</i></div>
+    <div class="kpi"><b>${onTimeRate}%</b><span>回复及时率</span>
+      <i style="background:var(--green-l);color:var(--green)">${onTime}/${replied.length}</i></div>
+  </div>
+
+  <div class="sec-title"><h3>发现项级别分布</h3><span>${PERIODS[S.period]}${(S.lines || []).length ? ' · ' + esc(lineSelLabel()) : ''}</span></div>
+  <div class="card">
+    <div class="row" style="gap:16px">
+      <div style="position:relative;width:128px;height:128px;flex:0 0 128px">
+        <svg width="128" height="128" viewBox="0 0 128 128">
+          <circle cx="64" cy="64" r="${R}" fill="none" stroke="#EEF3F5" stroke-width="17"/>
+          ${segs}
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-size:22px;font-weight:750;letter-spacing:-.5px">${total}</div>
+          <div class="tiny" style="margin-top:1px">发现项</div>
+        </div>
+      </div>
+      <div style="flex:1">
+        ${Object.keys(LEVELS).map(k => `
+          <div class="row" style="justify-content:space-between;margin-bottom:9px">
+            <span class="row" style="gap:6px;font-size:11.5px;color:var(--ink2)">
+              <i style="width:8px;height:8px;border-radius:2px;background:${colors[k]};display:block"></i>${LEVELS[k].name}
+            </span>
+            <b style="font-size:13px">${byLevel[k]}</b>
+          </div>`).join('')}
+        <div class="tiny" style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;line-height:1.6">
+          处理节奏：待确认 ${fs.filter(f => f.status === 'pending').length} · 待回复 ${fs.filter(f => f.status === 'confirmed').length} · 已回复 ${replied.length}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-title"><h3>发现项分类统计</h3><span>${PERIODS[S.period]}${(S.lines || []).length ? ' · ' + esc(lineSelLabel()) : ''}</span></div>
+  <div class="card">
+    ${catRows.some(x => x.n) ? catRows.map(x => `
+      <div class="bar-row" title="${esc(x.c)}">
+        <span class="bl" style="width:150px;flex:0 0 150px">${esc(x.c)}</span>
+        <div class="bar-track"><i style="width:${Math.round(x.n / maxCat * 100)}%"></i></div>
+        <span class="bv">${x.n}</span>
+      </div>`).join('')
+    : `<div class="tiny" style="padding:6px 0;line-height:1.7">当前口径内暂无分类数据。登记发现项时选择分类、或回复时修订分类后即可在此查看分布。</div>`}
+    ${catRows.some(x => x.n) ? `<div class="tiny" style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;line-height:1.6">
+      一条发现项可属于多个分类，各分类计数之和可能大于发现项总数${unCat ? `；其中 ${unCat} 条尚未选择分类` : ''}。</div>` : ''}
+  </div>
+
+  <div class="sec-title"><h3>车间发现项分布</h3><span>${(S.lines || []).length ? esc(lineSelLabel()) : '按数量排序'}</span></div>
+  <div class="card">
+    ${byWs.map(x => `
+      <div class="bar-row">
+        <span class="bl">${esc(x.w.name)}</span>
+        <div class="bar-track"><i style="width:${Math.round(x.n / maxWs * 100)}%"></i></div>
+        <span class="bv">${x.n}</span>
+      </div>`).join('')}
+  </div>
+
+  <div class="sec-title"><h3>${PERIODS[S.period]}车间巡检覆盖</h3><span>${cov.done}/${cov.total}</span></div>
+  <div class="card" style="padding:6px 14px">
+    ${cov.list.map(c => `
+      <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid #F2F6F8">
+        <span style="font-size:12.5px">${esc(c.w.name)}</span>
+        <span class="tag ${c.ok ? 'ok' : c.t ? 'warn' : 'danger'}">
+          ${c.ok ? '已巡检' : c.t ? TASK_ST[taskStatus(c.t)].name : '未安排'}</span>
+      </div>`).join('')}
+  </div>
+
+  ${can('exportAll') ? `
+  <div class="row" style="gap:9px;margin-top:14px">
+    <button class="btn btn-line" style="flex:1" data-act="dataMgr">按日期导出 / 删除</button>
+  </div>
+  <div class="tiny" style="margin:8px 4px 0;line-height:1.7">
+    选择日期区间后可批量导出 Excel，或清理该区间的历史数据；删除会记入审计日志。
+  </div>` : ''}`;
+}
+
+/* ============================================================
+   我的
+============================================================ */
+function renderMe() {
+  const m = me();
+  const r = ROLES[S.role];
+  const fs = D().findings;
+  const mine = S.role === 'inspector' ? fs.filter(f => f.foundBy === m.name)
+    : S.role === 'compliance' ? fs.filter(f => f.confirmBy === m.name)
+      : fs.filter(f => f.reply && f.reply.owner === m.name);
+  const todo = S.role === 'inspector' ? D().tasks.filter(t => t.assignee === m.name && ['pending', 'doing'].indexOf(taskStatus(t)) >= 0).length
+    : S.role === 'compliance' ? fs.filter(f => f.status === 'pending').length
+      : fs.filter(f => f.status === 'confirmed').length;
+
+  return `
+  <div class="card" style="padding:16px">
+    <div class="row" style="gap:12px">
+      <div style="width:50px;height:50px;border-radius:15px;display:flex;align-items:center;justify-content:center;
+        font-size:19px;font-weight:700;color:#fff;flex:0 0 50px;
+        background:${S.role === 'compliance' ? 'linear-gradient(135deg,#2563C9,#4A8AE0)' : S.role === 'production' ? 'linear-gradient(135deg,#C77A1E,#E0A03A)' : S.role === 'preview' ? 'linear-gradient(135deg,#5A6B7A,#8496A5)' : 'linear-gradient(135deg,#0F8378,#18A795)'}">
+        ${m.name.slice(0, 1)}</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700">${m.name}<span class="tag pri" style="margin-left:7px">${r.name}</span></div>
+        <div class="tiny" style="margin-top:5px">${m.emp} · ${m.dept}</div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:11px;padding:8px 10px;background:#F4F8FA;border-radius:8px;gap:6px">
+      <span style="font-size:11px;color:var(--ink3)">身份来源</span>
+      <span style="font-size:11.5px;font-weight:600;color:var(--ink2)">${esc(r.src)}</span>
+      <span class="tag ok" style="margin-left:auto;font-size:9.5px">已认证</span>
+    </div>
+    <div class="row" style="margin-top:6px;padding:7px 10px;border-radius:8px;gap:6px;background:${CLOUD.on ? '#F2F9F7' : '#F4F6F8'}">
+      <span style="font-size:11px;color:var(--ink3)">数据模式</span>
+      <span style="font-size:11.5px;font-weight:600;color:${CLOUD.on ? 'var(--pri)' : 'var(--ink2)'}">${CLOUD.on ? '多人共享（云端实时同步）' : '本地模式（数据仅存本机）'}</span>
+    </div>
+    ${S.role === 'production' && myShops().length ? `<div class="tiny" style="margin-top:8px;line-height:1.6">
+      分管车间：${myShops().map(id => (wsOf(id) || {}).name).filter(Boolean).join('、')}（可查看全部车间数据）</div>` : ''}
+    <div class="row" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;text-align:center">
+      <div style="flex:1"><div style="font-size:15px;font-weight:700;color:${todo ? 'var(--amber)' : 'inherit'}">${todo}</div><div class="tiny">待办事项</div></div>
+      <div style="flex:1;border-left:1px solid #F0F4F6"><div style="font-size:15px;font-weight:700">${mine.length}</div><div class="tiny">经手记录</div></div>
+      <div style="flex:1;border-left:1px solid #F0F4F6"><div style="font-size:15px;font-weight:700">${S.role === 'production' ? myShops().length : D().workshops.length}</div><div class="tiny">${S.role === 'production' ? '分管车间' : '在管车间'}</div></div>
+    </div>
+  </div>
+
+  <div class="sec-title"><h3>我的权限</h3><span>按角色自动授予</span></div>
+  <div class="card" style="padding:12px 14px">
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      ${myPerms().map(n => `<span class="tag pri" style="font-size:10.5px">${esc(n)}</span>`).join('')}
+    </div>
+    <div class="tiny" style="margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);line-height:1.7">
+      ${S.role === 'inspector' ? `数据范围：本人负责 / 本人创建的任务与发现项<br>限制：不能确认发现项、不能改他人任务、不能改车间主数据`
+        : S.role === 'compliance' ? `数据范围：全部车间与记录<br>限制：不能代填巡检记录、不能代生产回复`
+          : `数据范围：全部车间（分管车间用于快捷筛选）<br>限制：不能确认 / 退回、不能改级别、不能分配巡检任务`}
+    </div>
+  </div>
+
+  ${can('manageRole') ? accountCardHTML() : ''}
+
+  <div class="sec-title"><h3>角色说明</h3><span>演示用，可切换</span></div>
+  <div class="card" style="padding:0 14px">
+    ${Object.keys(ROLES).map(k => `
+      <div class="row" style="justify-content:space-between;padding:12px 0;border-bottom:1px solid #F2F6F8">
+        <div>
+          <div style="font-size:12.5px;font-weight:650">${ROLES[k].name}${S.role === k ? ' <span class="tag pri">当前</span>' : ''}</div>
+          <div class="tiny" style="margin-top:2px">${ROLES[k].desc}</div>
+        </div>
+        <span class="tag ${S.role === k ? 'ok' : 'gray'}">${S.role === k ? '使用中' : '可切换'}</span>
+      </div>`).join('')}
+  </div>
+
+  <div class="sec-title"><h3>常用功能</h3><span></span></div>
+  <div class="card" style="padding:0 14px">
+    ${[
+      { act: 'newTask', n: '分配巡检任务', d: '指派给自己或组内同事，可改派 / 改期', show: S.role === 'inspector' },
+      { act: 'goConfig', n: '车间与房间管理', d: `${D().workshops.length} 车间 · ${D().workshops.reduce((n, w) => n + w.rooms.length, 0)} 房间，可新增 / 编辑 / 删除`, show: can('manageData') },
+      { act: 'goConfig', n: '巡检配置', d: `频率 ${D().settings.freq} 次/月 · 回复 ${D().settings.replyDays} 天`, show: can('configPolicy') },
+      { act: 'export', n: '导出全部巡检数据', d: 'Excel 文件：发现项明细 + 任务汇总两个工作表', show: can('exportAll') },
+      { act: 'dataMgr', n: '按日期导出 / 删除', d: '选择日期区间批量导出，或清理历史数据', show: can('exportAll') },
+      { act: 'goAudit', n: '审计追踪', d: '角色变更、房间回复人调整、数据删除留痕', show: can('viewAudit') },
+      { act: 'roleSheet', n: '切换角色', d: '巡检人 / 合规管理 / 整改回复人 / 预览', show: true },
+      { act: 'reset', n: '重置演示数据', d: '清空并恢复初始样本', show: true }
+    ].filter(i => i.show).map((i, ix, arr) => `
+      <div class="row" style="justify-content:space-between;padding:13px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer" data-act="${i.act}">
+        <div>
+          <div style="font-size:13px;font-weight:600">${i.n}</div>
+          <div class="tiny" style="margin-top:2px">${i.d}</div>
+        </div>
+        <span style="color:${i.act === 'reset' ? 'var(--red)' : 'var(--ink3)'};font-size:11.5px;font-weight:600">›</span>
+      </div>`).join('')}
+  </div>
+
+  <div class="sec-title"><h3>流程说明</h3><span></span></div>
+  <div class="card tiny" style="line-height:1.9">
+    1. 合规管理或巡检人按「每车间每月至少 1 次」分配任务，可指派给自己或组内同事，并支持改派 / 改期<br>
+    2. 巡检人逐房间检查，发现问题即登记（内容 + 照片 + 级别）<br>
+    3. 合规管理确认发现项，可调整级别或退回补充<br>
+    4. 整改回复人在 ${D().settings.replyDays} 天内回复整改措施并手动填写责任人<br>
+    5. 全部回复后任务自动闭环，数据归档可导出
+  </div>`;
+}
+
+/* 账号与角色分配卡片（巡检人 / 合规管理可见） */
+function accountCardHTML() {
+  const accs = D().accounts || [];
+  return `
+  <div class="sec-title"><h3>账号与角色分配</h3><span>${accs.length} 个账号</span></div>
+  <div class="card" style="padding:0 14px">
+    ${accs.map((u, i, arr) => `
+      <div class="row" style="justify-content:space-between;padding:11px 0;${i < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer"
+        data-act="editAccount" data-emp="${u.emp}">
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:650">${esc(u.name)}
+            <span class="tiny" style="margin-left:6px;font-weight:400">${esc(u.emp)}</span>
+            ${u.emp === me().emp ? '<span class="tag pri" style="font-size:9px;margin-left:4px">我</span>' : ''}
+          </div>
+          <div class="tiny" style="margin-top:2px">${esc(u.dept)}${u.shops && u.shops.length ? ' · 分管 ' + u.shops.map(id => (wsOf(id) || {}).name).filter(Boolean).join('、') : ''}</div>
+        </div>
+        <span class="tag ${u.role === 'compliance' ? 'info' : u.role === 'production' ? 'warn' : 'ok'}" style="font-size:10px">
+          ${ROLES[u.role].name}</span>
+      </div>`).join('')}
+    <div class="row" style="padding:10px 0 12px">
+      <button class="btn btn-line btn-sm" style="flex:1" data-act="addAccount">+ 新增账号</button>
+      <button class="btn btn-line btn-sm" style="flex:1;margin-left:8px" data-act="roleLog">变更记录</button>
+    </div>
+    <div class="tiny" style="padding:0 0 12px;line-height:1.7;color:var(--ink3)">
+      钉钉扫码登录的账号默认授予「预览」角色（只读查看数据）；「整改回复人」等其他角色由巡检人和合规管理在此单独设置，变更记入审计日志。
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   配置
+   ============================================================ */
+function renderConfig() {
+  if (!can('manageData')) {
+    return `<div class="empty" style="padding-top:60px">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l7 3v6c0 4.2-3 7.4-7 8.4-4-1-7-4.2-7-8.4V6l7-3z"/></svg>
+      <b>无访问权限</b>车间与房间管理仅限巡检人 / 合规管理角色</div>`;
+  }
+  const st = D().settings;
+  const m = month();
+  return `
+  <div class="sec-title"><h3>巡检频率与周期</h3><span>生产环境限合规管理修改</span></div>
+  <div class="card" style="padding:4px 14px">
+    <div class="cfg-row">
+      <div>
+        <div style="font-size:13px;font-weight:600">每车间每月巡检次数</div>
+        <div class="tiny" style="margin-top:2px">当前 ${st.freq} 次/月，最低不少于 1 次</div>
+      </div>
+      <div class="stepper">
+        <button data-act="freqMinus">−</button><span>${st.freq}</span><button data-act="freqPlus">+</button>
+      </div>
+    </div>
+    <div class="cfg-row">
+      <div>
+        <div style="font-size:13px;font-weight:600">生产回复周期</div>
+        <div class="tiny" style="margin-top:2px">合规确认后 ${st.replyDays} 天内须回复</div>
+      </div>
+      <div class="stepper">
+        <button data-act="dayMinus">−</button><span>${st.replyDays}天</span><button data-act="dayPlus">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-title"><h3>车间与房间</h3><span>${D().workshops.length} 车间 · ${D().workshops.reduce((n, w) => n + w.rooms.length, 0)} 房间</span></div>
+  ${D().workshops.map(w => {
+    const open = S.sub.openWs === w.id;
+    return `
+    <div class="ws-item ${open ? 'open' : ''}">
+      <div class="ws-h" data-act="toggleWs" data-id="${w.id}">
+        <div>
+          <div class="ws-name">${esc(w.name)}</div>
+          <div class="tiny" style="margin-top:2px">${w.code} · ${w.rooms.length} 个房间</div>
+        </div>
+        <div class="row" style="gap:6px">
+          <span class="tag ${monthCoverage().list.find(c => c.w.id === w.id && c.ok) ? 'ok' : 'gray'}" style="font-size:9.5px">
+            ${monthCoverage().list.find(c => c.w.id === w.id && c.ok) ? '本月已检' : '本月未检'}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+            style="transform:rotate(${open ? 90 : 0}deg);transition:transform .18s;color:#B7C4CE"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+      <div class="ws-rooms">
+        ${w.rooms.map(r => `
+          <div class="ws-room">
+            <span><span class="rc">${r.code}</span>${esc(r.name)}
+              ${r.replyOwner ? `<span class="tag pri" style="font-size:9px;margin-left:5px">回复人 ${esc(r.replyOwner)}</span>` : ''}</span>
+            <span class="row" style="gap:8px">
+              <button class="btn btn-line btn-sm" style="padding:4px 8px;font-size:10.5px"
+                data-act="editRoom" data-ws="${w.id}" data-room="${r.id}">编辑</button>
+              <button class="btn btn-line btn-sm" style="padding:4px 8px;font-size:10.5px;color:var(--red)"
+                data-act="delRoom" data-ws="${w.id}" data-room="${r.id}">删</button>
+            </span>
+          </div>`).join('')}
+        <div class="row" style="gap:8px;padding-top:10px">
+          <button class="btn btn-line btn-sm" style="flex:1" data-act="addRoom" data-ws="${w.id}">+ 新增房间</button>
+          <button class="btn btn-line btn-sm" style="flex:1" data-act="editWs" data-ws="${w.id}">编辑车间</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}
+  <button class="btn btn-line" style="width:100%;margin-top:4px" data-act="addWs">+ 新增车间</button>
+
+  <div class="sec-title"><h3>任务生成</h3><span></span></div>
+  <div class="card">
+    <div class="tiny" style="line-height:1.7;margin-bottom:10px">
+      系统按「每车间每月 ${D().settings.freq} 次」自动补齐 ${m} 的巡检任务，也可手工新建或调整。
+    </div>
+    <button class="btn btn-pri" style="width:100%" data-act="genMonth">补齐本月任务</button>
+  </div>
+  <div class="tiny" style="margin:14px 4px;line-height:1.75">
+    修改车间 / 房间名称与编号后，历史记录中的名称不做回溯变更（保留原始记录）。
+  </div>`;
+}
+
+/* ============================================================
+   渲染主循环
+   ============================================================ */
+/* 审计追踪：角色 / 主数据变更（roleLog）+ 数据删除（deleteLog）统一时间线 */
+function renderAudit() {
+  const changes = (D().roleLog || []).map(l => ({
+    at: l.at, type: 'change', who: l.who, by: l.by, note: l.note
+  }));
+  const dels = (D().deleteLog || []).map(l => ({
+    at: l.at, type: 'delete', who: l.by, by: l.by,
+    note: `按「${l.range}」删除数据：发现项 ${l.findings} 条、任务 ${l.tasks} 条`
+  }));
+  const items = changes.concat(dels).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+  const tag = it => it.type === 'delete'
+    ? '<span class="tag danger" style="font-size:9.5px">数据删除</span>'
+    : '<span class="tag pri" style="font-size:9.5px">权限 / 主数据</span>';
+  return `
+  <div class="hero" style="padding:14px 16px">
+    <div style="font-size:14.5px;font-weight:700">审计追踪</div>
+    <div class="tiny" style="margin-top:4px;line-height:1.7">角色与账号变更、房间回复人调整、数据删除均在此留痕，仅供巡检人与合规管理追溯</div>
+  </div>
+  <div class="sec-title"><h3>操作留痕</h3><span>${items.length} 条</span></div>
+  ${items.length ? `<div class="card" style="padding:4px 14px">
+    ${items.map((it, i) => `
+      <div style="padding:11px 0;${i < items.length - 1 ? 'border-bottom:1px dashed #EDF1F4' : ''}">
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <div class="row" style="gap:6px">${tag(it)}<b style="font-size:12.5px">${esc(it.who || it.by || '')}</b></div>
+          <span class="tiny" style="font-family:ui-monospace,Menlo,monospace">${esc(it.at)}</span>
+        </div>
+        <div class="tiny" style="margin-top:4px;line-height:1.7">操作人 ${esc(it.by)}：${esc(it.note)}</div>
+      </div>`).join('')}
+  </div>` : `<div class="empty" style="padding:28px 0"><b>暂无审计记录</b><br>调整账号 / 房间回复人或删除数据后会在这里留痕</div>`}`;
+}
+
+function render() {
+  // 预览角色（只读）：仅可看已确认记录、统计、我的；其余页面重定向
+  if (S.role === 'preview' && ['records', 'stats', 'me', 'fdetail'].indexOf(S.page) < 0) {
+    S.page = 'records'; S.sub = {};
+  }
+  // 审计追踪仅巡检人 / 合规管理可访问，其余角色回到「我的」
+  if (S.page === 'audit' && !can('viewAudit')) { S.page = 'me'; S.sub = {}; }
+  renderNav();
+  renderTabbar();
+  const map = {
+    tasks: renderTasks, records: renderRecords, confirm: renderConfirm, replies: renderReplies,
+    stats: renderStats, me: renderMe, wdetail: renderWDetail, room: renderRoom,
+    fdetail: renderFDetail, config: renderConfig, audit: renderAudit
+  };
+  el('view').innerHTML = (map[S.page] || renderTasks)();
+  el('phone').classList.toggle('has-bar', false);
+  el('view').scrollTop = 0;
+  const oldBar = document.querySelector('.actionbar');
+  if (oldBar) oldBar.remove();
+}
+
+/* ============================================================
+   语音转文字（浏览器内置 Web Speech API）
+   - 仅 Chrome / Edge / 企业微信内置浏览器等 Chromium 内核可用
+   - 录音仅在浏览器内识别，识别结果直接写入输入框，不做本地存音频
+   ============================================================ */
+/* 用函数取值而非 const 固化，便于不支持时优雅降级与自动化测试注入 */
+function SRClass() {
+  return typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+function voiceSupported() { return !!SRClass(); }
+
+/* 听写字段名映射（标题 / 描述 / 整改措施） */
+const VOICE_FIELDS = { title: '标题', desc: '描述', measures: '整改措施' };
+function voiceFieldName(f) { return VOICE_FIELDS[f] || '内容'; }
+
+function voiceStop() {
+  if (S.voice && S.voice.rec) {
+    S.voice.manual = true;           // 标记为主动停止，避免 onend 自动重启
+    try { S.voice.rec.stop(); } catch (e) { /* 已结束 */ }
+  }
+  S.voice = null;
+}
+function voiceStart(field) {
+  if (!voiceSupported()) { toast('当前浏览器不支持语音识别，请改用键盘输入'); return; }
+  // 已在录同一字段 → 停止
+  if (S.voice && S.voice.field === field) { voiceStop(); renderSheet(); return; }
+  voiceStop();
+
+  const rec = new (SRClass())();
+  rec.lang = 'zh-CN';
+  rec.continuous = true;
+  rec.interimResults = true;
+  const st = { rec, field, manual: false, finalText: '' };
+  S.voice = st;
+
+  rec.onresult = (ev) => {
+    let interim = '', fin = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const r = ev.results[i];
+      if (r.isFinal) fin += r[0].transcript;
+      else interim += r[0].transcript;
+    }
+    if (fin) st.finalText += fin;
+    applyVoiceText(field, st.finalText + interim);
+    const tip = document.getElementById('voiceTip');
+    if (tip) tip.textContent = `正在听写${voiceFieldName(field)}（普通话）… ${
+      (st.finalText + interim).slice(-16) || '请开口说话'}`;
+  };
+  rec.onerror = (ev) => {
+    const map = {
+      'not-allowed': '麦克风权限被拒绝，请在浏览器设置中允许后重试',
+      'service-not-allowed': '浏览器未提供语音识别服务，请改用键盘输入',
+      'no-speech': '没有听到声音，请靠近麦克风重试',
+      'audio-capture': '未检测到麦克风设备',
+      'network': '语音识别网络异常，请检查网络后重试'
+    };
+    const msg = map[ev.error] || `语音识别失败（${ev.error}）`;
+    voiceStop();
+    renderSheet();
+    toast(msg);
+  };
+  rec.onend = () => {
+    // continuous 模式下部分浏览器仍会静默结束，未主动停止则续接
+    if (S.voice === st && !st.manual) {
+      try { rec.start(); return; } catch (e) { /* 无法重启则收尾 */ }
+    }
+    if (S.voice === st) { S.voice = null; renderSheet(); }
+  };
+
+  try { rec.start(); } catch (e) { S.voice = null; toast('语音识别启动失败'); return; }
+  renderSheet();
+}
+
+/* 把识别文本回填到当前 sheet 草稿（不整体重绘，避免打断输入与录音） */
+function applyVoiceText(field, text) {
+  const s = S.sheet;
+  if (!s || !s.draft) return;
+  s.draft[field] = field === 'title' ? text.slice(0, 40) : text;
+  const node = document.querySelector(`#sheet [data-f="${field}"]`);
+  if (node) {
+    if (S.voice) S.voice.applying = true;
+    node.value = s.draft[field];
+    if (S.voice) S.voice.applying = false;
+  }
+}
+
+/* ============================================================
+   登录账号提醒（超期未回复 / 巡检任务到期）
+   - 原型内：登录后顶部铃铛角标 + 提醒列表；正式环境对接钉钉工作通知推送到登录账号
+   ============================================================ */
+function daysDiff(d) { return Math.round((new Date(d + 'T00:00:00') - new Date(todayStr() + 'T00:00:00')) / 86400000); }
+function myReminders() {
+  const out = [];
+  const m = me();
+  if (S.role === 'inspector') {
+    D().tasks.forEach(t => {
+      if (t.assignee !== m.name || ['pending', 'doing'].indexOf(taskStatus(t)) < 0) return;
+      const left = daysDiff(t.due);
+      if (left < 0) out.push({ kind: 'task', id: t.id, lv: 'danger',
+        title: `巡检任务已超期 ${-left} 天`,
+        desc: `${wsOf(t.workshopId).name} · 期限 ${t.due}，请尽快完成巡检并提交`,
+        page: 'wdetail', sub: { taskId: t.id } });
+      else if (left <= 2) out.push({ kind: 'task', id: t.id, lv: 'warn',
+        title: left === 0 ? '巡检任务今日到期' : `巡检任务还剩 ${left} 天到期`,
+        desc: `${wsOf(t.workshopId).name} · 期限 ${t.due}`,
+        page: 'wdetail', sub: { taskId: t.id } });
+    });
+  }
+  if (S.role === 'production') {
+    D().findings.forEach(f => {
+      if (f.status !== 'confirmed') return;
+      const left = daysDiff(f.replyDue);
+      if (left < 0) out.push({ kind: 'find', id: f.id, lv: 'danger',
+        title: `整改回复已超期 ${-left} 天`,
+        desc: `${wsOf(f.workshopId).name} · ${f.title} · 期限 ${f.replyDue}`,
+        page: 'fdetail', sub: { findId: f.id } });
+      else if (left <= 1) out.push({ kind: 'find', id: f.id, lv: 'warn',
+        title: left === 0 ? '整改回复今日到期' : '整改回复明天到期',
+        desc: `${wsOf(f.workshopId).name} · ${f.title} · 期限 ${f.replyDue}`,
+        page: 'fdetail', sub: { findId: f.id } });
+    });
+  }
+  if (S.role === 'compliance') {
+    const pending = D().findings.filter(f => f.status === 'pending');
+    if (pending.length) out.push({ kind: 'confirm', id: '', lv: 'warn',
+      title: `${pending.length} 项发现项待确认`,
+      desc: '巡检人提交后等待合规确认，确认后转生产回复',
+      page: 'confirm', sub: {} });
+    D().findings.forEach(f => {
+      if (f.status !== 'confirmed' || !f.replyDue || daysDiff(f.replyDue) >= 0) return;
+      out.push({ kind: 'find', id: f.id, lv: 'danger',
+        title: `生产回复已超期 ${-daysDiff(f.replyDue)} 天`,
+        desc: `${wsOf(f.workshopId).name} · ${f.title} · 需跟进催办`,
+        page: 'fdetail', sub: { findId: f.id } });
+    });
+  }
+  return out;
+}
+
+function remindSheetHTML() {
+  const list = myReminders();
+  const m = me();
+  const acc = (D().accounts || []).find(a => a.name === m.name);
+  const pushTo = acc ? `${acc.emp}（钉钉账号）` : '当前登录账号';
+  const body = list.length ? list.map(r => `
+    <div class="card" style="padding:12px;margin-bottom:8px;border-left:3px solid ${r.lv === 'danger' ? 'var(--red)' : 'var(--amber)'}">
+      <div class="row" style="gap:8px">
+        <span class="tag ${r.lv === 'danger' ? 'danger' : 'warn'}">${r.lv === 'danger' ? '超期' : '即将到期'}</span>
+        <b style="font-size:12.5px;flex:1">${esc(r.title)}</b>
+      </div>
+      <div class="tiny" style="margin-top:6px;line-height:1.6">${esc(r.desc)}</div>
+      <button class="btn btn-line btn-sm" style="margin-top:9px;width:100%" data-act="remindGo"
+        data-p="${r.page}" data-sub="${esc(JSON.stringify(r.sub))}">立即处理</button>
+    </div>`).join('')
+    : `<div class="empty"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 6L9 17l-5-5"/></svg>
+      <b>暂无待办提醒</b>任务到期、超期未回复会在这里提示</div>`;
+  return sheetWrap('我的提醒', `将推送到钉钉账号 ${esc(pushTo)}`,
+    body, `<button class="btn btn-line" style="flex:1" data-act="sheetClose">关闭</button>`);
+}
+
+function toast(msg) {
+  const t = el('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => t.classList.remove('on'), 2200);
+}
+function go(page, sub) {
+  S.page = page;
+  S.sub = Object.assign({}, S.sub, sub || {});
+  render();
+}
+
+/* ============================================================
+   Sheet 弹层
+   ============================================================ */
+function openSheet(cfg) {
+  S.sheet = cfg;
+  renderSheet();
+}
+function closeSheet() {
+  if (S.voice) voiceStop();
+  S.sheet = null;
+  el('sheet').classList.remove('on');
+  el('sheet').innerHTML = '';
+}
+function sheetWrap(title, sub, body, footer) {
+  return `
+  <div class="sheet-mask" data-act="sheetClose"></div>
+  <div class="sheet-pan">
+    <div class="sheet-hd">
+      <div><b>${title}</b>${sub ? `<div class="tiny" style="margin-top:2px">${sub}</div>` : ''}</div>
+      <button class="nav-btn" data-act="sheetClose">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="sheet-bd">${body}</div>
+    <div class="sheet-ft">${footer}</div>
+  </div>`;
+}
+
+/* 发现项分类：多选下拉（登记 / 回复共用）+ 卡片标签 */
+function catSelLabel(sel) {
+  sel = sel || [];
+  return sel.length ? (sel.length === 1 ? sel[0] : `已选 ${sel.length} 个分类`) : '请选择分类（可多选）';
+}
+function catDropHTML(d) {
+  const sel = d.cats || [];
+  return `<div class="fld" style="position:relative">
+    <label>发现项分类（可多选${d.allowEditCats ? '，回复人可修订' : ''}）</label>
+    <button type="button" data-act="catDrop" style="width:100%;display:flex;align-items:center;gap:8px;
+      border:1px solid ${sel.length ? 'var(--pri)' : 'var(--line)'};
+      background:${sel.length ? 'var(--pri-l)' : '#fff'};
+      border-radius:10px;padding:10px 12px;cursor:pointer;font-family:inherit;text-align:left">
+      <span style="flex:1;font-size:12.5px;font-weight:650;color:${sel.length ? 'var(--pri)' : 'var(--ink3)'}">${esc(catSelLabel(sel))}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2.4" stroke-linecap="round"
+        style="transition:transform .15s;${S.catOpen ? 'transform:rotate(180deg)' : ''}"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    ${S.catOpen ? `
+    <div style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;background:#fff;
+      border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(15,30,40,.14);padding:6px">
+      ${CATEGORIES.map(c => {
+        const on = sel.indexOf(c) >= 0;
+        return `<div data-act="catPick" data-c="${esc(c)}" style="display:flex;align-items:center;gap:9px;
+          padding:8px 10px;border-radius:8px;cursor:pointer;${on ? 'background:#F2F9F7' : ''}">
+          <i style="width:17px;height:17px;border-radius:5px;flex:0 0 17px;display:flex;align-items:center;justify-content:center;
+            border:1.5px solid ${on ? '#0F8378' : '#C6D2D8'};background:${on ? '#0F8378' : '#fff'};color:#fff;font-size:11px;font-style:normal">${on ? '✓' : ''}</i>
+          <span style="flex:1;font-size:12.5px;font-weight:${on ? '650' : '500'};color:var(--ink)">${esc(c)}</span>
+        </div>`;
+      }).join('')}
+      <div class="row" style="gap:8px;padding:7px 8px 5px;border-top:1px dashed var(--line);margin-top:4px">
+        <button class="btn btn-line btn-sm" style="flex:1" data-act="catClear">清空</button>
+        <button class="btn btn-pri btn-sm" style="flex:1" data-act="catDrop">完成</button>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+function catTags(f) {
+  return (f.cats || []).map(c => `<span class="tag gray" style="font-size:9.5px">${esc(c)}</span>`).join('');
+}
+
+function micBtn(field) {
+  const ok = voiceSupported();
+  return `<button class="mic${S.voice && S.voice.field === field ? ' rec' : ''}" data-act="voice"
+    data-f="${field}" ${ok ? '' : 'disabled title="当前浏览器不支持语音识别"'}>
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+      stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/>
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+    ${S.voice && S.voice.field === field ? '识别中' : '语音'}</button>`;
+}
+function voiceTipHTML(extra) {
+  const v = S.voice;
+  return `<div class="voice-tip${v && v.field ? ' on' : ''}" id="voiceTip">${
+    v && v.field
+      ? `正在听写${voiceFieldName(v.field)}（普通话）… 说完点击「停止」，识别结果会追加到输入框${extra || ''}`
+      : ''}</div>`;
+}
+
+function renderSheet() {
+  const s = S.sheet;
+  if (!s) { el('sheet').classList.remove('on'); return; }
+  let html = '';
+
+  if (s.type === 'role') {
+    html = sheetWrap('切换角色', '原型演示用，正式环境按登录账号自动识别',
+      Object.keys(ROLES).map(k => `
+        <div class="role-opt ${S.role === k ? 'on' : ''}" data-act="pickRole" data-k="${k}">
+          <div class="rc-icon ${ROLES[k].cls}" style="background:${k === 'inspector' ? '#EAF5F3' : k === 'compliance' ? '#EFF4FD' : k === 'production' ? '#FDF6EA' : '#F0F3F6'};
+            color:${k === 'inspector' ? '#0B6A61' : k === 'compliance' ? '#1B4FA8' : k === 'production' ? '#9A5E12' : '#46586A'}">
+            ${k === 'inspector' ? '◎' : k === 'compliance' ? '✓' : k === 'production' ? '⚑' : '👁'}</div>
+          <div style="flex:1">
+            <b>${ROLES[k].name}</b>
+            <small>${ROLES[k].desc}</small>
+          </div>
+          ${S.role === k ? '<span class="tag ok">当前</span>' : ''}
+        </div>`).join(''),
+      '<button class="btn btn-line" style="flex:1" data-act="sheetClose">关闭</button>');
+  }
+
+  else if (s.type === 'newFind' || s.type === 'editFind') {
+    const t = taskOf(s.taskId);
+    const w = wsOf(t.workshopId);
+    const r = roomOf(t.workshopId, s.roomId);
+    const d = s.draft;
+    html = sheetWrap(s.type === 'editFind' ? '修改发现项' : '登记发现项',
+      `${w.name} · ${r.code} ${r.name}`,
+      `<div class="fld">
+        <div class="fld-hd"><label>问题标题（必填）</label>${micBtn('title')}</div>
+        <input type="text" data-f="title" value="${esc(d.title)}" placeholder="如：传递窗密封条老化破损" maxlength="40">
+      </div>
+      <div class="fld">
+        <div class="fld-hd"><label>问题描述（必填）</label>${micBtn('desc')}</div>
+        <textarea rows="4" data-f="desc" placeholder="描述具体现象、位置、可能的后果及现场临时处置">${esc(d.desc)}</textarea>
+        ${voiceTipHTML()}
+      </div>
+      <div class="fld">
+        <label>发现项级别</label>
+        <div class="lv-pick">
+          ${Object.keys(LEVELS).map(k => `
+            <button data-act="pickLevel" data-lv="${k}" class="${d.level === k ? 'on' : ''}">
+              <b>${LEVELS[k].name}</b><small>${LEVELS[k].desc}</small>
+            </button>`).join('')}
+        </div>
+      </div>
+      ${catDropHTML(d)}
+      <div class="fld">
+        <label>现场照片（最多 3 张）</label>
+        <div class="up-wrap">
+          ${d.photos.map((u, i) => `
+            <div class="up" style="border-style:solid;padding:0">
+              <img src="${u}" alt="照片">
+              <span data-act="delPhoto" data-i="${i}" style="position:absolute;top:1px;right:1px;width:16px;height:16px;
+                border-radius:50%;background:rgba(15,30,40,.72);color:#fff;font-size:11px;display:flex;
+                align-items:center;justify-content:center;cursor:pointer">×</span>
+            </div>`).join('')}
+          ${d.photos.length < 3 ? `<label class="up">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            <input type="file" accept="image/*" capture="environment" data-photo="1" hidden>
+          </label>` : ''}
+        </div>
+      </div>
+      <div class="tiny" style="margin-top:10px;line-height:1.7">
+        提交后进入合规确认，确认通过的发现项将推送整改回复人，要求 ${D().settings.replyDays} 天内回复整改措施与责任人。
+      </div>`,
+      `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
+       <button class="btn btn-line" data-act="saveDraftFind">保存草稿</button>
+       <button class="btn btn-pri" data-act="saveFind">${s.type === 'editFind' ? '重新提交' : '提交发现项'}</button>`);
+  }
+
+  else if (s.type === 'remind') {
+    html = remindSheetHTML();
+  }
+
+  else if (s.type === 'confirm') {
+    const f = findOf(s.findId);
+    const d = s.draft;
+    html = sheetWrap('合规确认', `${wsOf(f.workshopId).name} · ${roomOf(f.workshopId, f.roomId).name}`,
+      `<div class="card" style="padding:12px;margin-bottom:2px">
+        <div style="font-size:13px;font-weight:650;line-height:1.5">${esc(f.title)}</div>
+        <div class="tiny" style="margin-top:7px;line-height:1.7">${esc(f.desc)}</div>
+        ${(() => {
+          const r0 = roomOf(f.workshopId, f.roomId);
+          const ro = r0 && r0.replyOwner ? r0.replyOwner : '';
+          return ro ? `<div class="tiny" style="margin-top:8px;color:var(--pri);font-weight:650">
+            确认后将自动分配给整改回复人：${esc(ro)}</div>` : '';
+        })()}
+        ${f.photos.length ? `<div class="photos" style="margin-top:9px">${f.photos.map(u => `<img src="${u}" alt="照片">`).join('')}</div>` : ''}
+      </div>
+      <div class="fld">
+        <label>确认级别（可调整）</label>
+        <div class="lv-pick">
+          ${Object.keys(LEVELS).map(k => `
+            <button data-act="pickConfirmLevel" data-lv="${k}" class="${d.level === k ? 'on' : ''}">
+              <b>${LEVELS[k].name}</b><small>${LEVELS[k].desc}</small>
+            </button>`).join('')}
+        </div>
+      </div>
+      <div class="fld">
+        <label>确认意见（可选）</label>
+        <textarea rows="2" data-f="note" placeholder="如：判定为重大偏差，要求 24 小时内启动调查">${esc(d.note)}</textarea>
+      </div>
+      <div class="tiny" style="margin-top:10px;line-height:1.7">
+        确认后系统将按 ${D().settings.replyDays} 天回复周期推送至生产，并记录确认人与时间。
+      </div>`,
+      `<button class="btn btn-line" style="flex:0 0 82px" data-act="switchReturn">退回</button>
+       <button class="btn btn-pri" data-act="doConfirm">确认通过</button>`);
+  }
+
+  else if (s.type === 'return') {
+    html = sheetWrap('退回发现项', '退回后由巡检人修改并重新提交',
+      `<div class="fld">
+        <label>退回原因（必填）</label>
+        <textarea rows="4" data-f="note" placeholder="如：描述不够具体，请补充位置与影响范围，并补充现场照片">${esc(s.draft.note)}</textarea>
+      </div>`,
+      `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
+       <button class="btn btn-pri" data-act="doReturn">确认退回</button>`);
+  }
+
+  else if (s.type === 'reply') {
+    const f = findOf(s.findId);
+    const d = s.draft;
+    html = sheetWrap('整改回复', `要求在 ${f.replyDue} 前完成回复（${replyDueLabel(f)}）`,
+      `<div class="card" style="padding:12px;margin-bottom:2px">
+        <div class="row" style="gap:6px;margin-bottom:6px">
+          <span class="tag ${LEVELS[f.level].cls}">${LEVELS[f.level].name}</span>${catTags(f)}
+          <span class="tiny">${wsOf(f.workshopId).name} · ${roomOf(f.workshopId, f.roomId).name}</span>
+        </div>
+        <div style="font-size:13px;font-weight:650;line-height:1.5">${esc(f.title)}</div>
+        <div class="tiny" style="margin-top:7px;line-height:1.7">${esc(f.desc)}</div>
+      </div>
+      ${catDropHTML(Object.assign({}, d, { allowEditCats: true }))}
+      <div class="fld">
+        <label>整改责任人（可手动填写，或点选登录账号，可多选）</label>
+        <input type="text" data-f="owner" value="${esc(d.owner)}" placeholder="如：王强、刘洋（多个用「、」分隔）" maxlength="60">
+        ${f.autoOwner ? `<div class="tiny" style="margin-top:5px;color:var(--pri)">已按房间分配自动带出：${esc(f.autoOwner)}，可修改</div>` : ''}
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+          ${(D().accounts || []).map(a => {
+            const names = String(d.owner || '').split(/[、,，]/).map(x => x.trim()).filter(Boolean);
+            const on = names.indexOf(a.name) >= 0;
+            return `<span class="tag ${on ? 'pri' : 'gray'}" style="cursor:pointer;font-size:10.5px;padding:4px 9px"
+              data-act="pickOwner" data-n="${esc(a.name)}">${esc(a.name)} · ${ROLES[a.role] ? ROLES[a.role].name : esc(a.dept)}${on ? ' ✓' : ''}</span>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="fld">
+        <label>计划完成日期</label>
+        <input type="date" data-f="planDate" value="${d.planDate}">
+      </div>
+      <div class="fld">
+        <label style="display:flex;align-items:center;gap:8px">整改措施（必填）${micBtn('measures')}</label>
+        ${voiceTipHTML()}
+        <textarea rows="4" data-f="measures" placeholder="描述已采取的纠正措施、根本原因分析及预防措施">${esc(d.measures)}</textarea>
+      </div>
+      <div class="fld">
+        <label>整改照片（最多 3 张，选填）</label>
+        <div class="up-wrap">
+          ${(d.photos || []).map((u, i) => `
+            <div class="up" style="border-style:solid;padding:0">
+              <img src="${u}" alt="整改照片">
+              <span data-act="delPhoto" data-i="${i}" style="position:absolute;top:1px;right:1px;width:16px;height:16px;
+                border-radius:50%;background:rgba(15,30,40,.72);color:#fff;font-size:11px;display:flex;
+                align-items:center;justify-content:center;cursor:pointer">×</span>
+            </div>`).join('')}
+          ${(d.photos || []).length < 3 ? `<label class="up">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            <input type="file" accept="image/*" capture="environment" data-photo="1" hidden>
+          </label>` : ''}
+        </div>
+      </div>`,
+      `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
+       <button class="btn btn-line" data-act="saveDraftReply">保存草稿</button>
+       <button class="btn btn-pri" data-act="doReply">提交回复</button>`);
+  }
+
+  else if (s.type === 'assign') {
+    const t = s.taskId ? taskOf(s.taskId) : null;
+    const tst = t ? taskStatus(t) : null;
+    const doingFinds = t ? findingsOfTask(t.id).length : 0;
+    html = sheetWrap(t ? '改派 / 改期' : '分配巡检任务',
+      t ? `${wsOf(t.workshopId).name} · ${TASK_ST[tst].name}` : '指派巡检人与完成期限',
+      `${!t ? `<div class="fld">
+        <label>巡检车间</label>
+        <select data-f="workshopId">
+          ${D().workshops.map(w => {
+            const n = D().tasks.filter(x => x.month === month() && x.workshopId === w.id).length;
+            return `<option value="${w.id}" ${s.draft.workshopId === w.id ? 'selected' : ''}>${w.name}${n ? `（本月已有 ${n} 个任务）` : '（本月未安排）'}</option>`;
+          }).join('')}
+        </select>
+      </div>` : `<div class="card" style="padding:11px 12px;margin-bottom:2px">
+        <div class="kv" style="padding:4px 0"><span>当前巡检人</span><span>${esc(t.assignee)}</span></div>
+        <div class="kv" style="padding:4px 0"><span>当前期限</span><span>${t.due}</span></div>
+        <div class="kv" style="padding:4px 0"><span>已登记发现项</span><span>${doingFinds} 项</span></div>
+      </div>`}
+      <div class="fld">
+        <label>巡检人${S.role === 'inspector' ? '（可指派给自己或组内同事）' : ''}</label>
+        <select data-f="assignee">
+          ${INSPECTORS.map(n => `<option value="${n}" ${s.draft.assignee === n ? 'selected' : ''}>${n}${n === me().name ? '（我）' : ''}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fld">
+        <label>任务期限</label>
+        <input type="date" data-f="due" value="${s.draft.due}">
+      </div>
+      ${t && tst === 'doing' ? `<div class="tiny" style="color:var(--amber);line-height:1.7;margin-top:2px">
+        ⚠ 该任务已开始巡检，改派后已登记的 ${doingFinds} 项发现项仍保留在本任务下，发现人仍记录为原巡检人。</div>` : ''}
+      <div class="tiny" style="margin-top:10px;line-height:1.7">
+        ${t ? '调整后立即生效，变更内容写入任务变更记录，可追溯。' : '任务生成后巡检人在任务页可见；同一车间每月至少安排 1 次，已满足频率仍可追加专项抽查。'}
+        ${S.role === 'inspector' ? '仅可调整本人负责的任务。' : ''}
+      </div>`,
+      `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
+       <button class="btn btn-pri" data-act="doAssign">${t ? '保存调整' : '创建并分配'}</button>`);
+  }
+
+  else if (s.type === 'account') {
+    const d = s.draft;
+    html = sheetWrap(s.mode === 'add' ? '新增账号' : '调整角色权限',
+      s.mode === 'add' ? '钉钉扫码后自动建档，默认生产角色' : `${d.name} · ${d.emp}`,
+      `${s.mode === 'add' ? `
+      <div class="fld">
+        <label>姓名（必填）</label>
+        <input type="text" data-f="name" value="${esc(d.name)}" placeholder="钉钉通讯录姓名" maxlength="10">
+      </div>
+      <div class="fld">
+        <label>钉钉工号</label>
+        <input type="text" data-f="emp" value="${esc(d.emp)}" placeholder="如：DD-30921">
+      </div>
+      <div class="fld">
+        <label>部门</label>
+        <input type="text" data-f="dept" value="${esc(d.dept)}" placeholder="如：生产制造部">
+      </div>` : ''}
+      <div class="fld">
+        <label>角色（决定可用功能）</label>
+        <select data-f="role">
+          ${Object.keys(ROLES).map(k => `<option value="${k}" ${d.role === k ? 'selected' : ''}>${ROLES[k].name} · ${ROLES[k].desc}</option>`).join('')}
+        </select>
+      </div>
+      ${d.role === 'production' ? `<div class="fld">
+        <label>分管车间（可用于快捷筛选，不影响查看范围）</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">
+          ${D().workshops.map(w => `
+            <button data-act="pickShop" data-ws="${w.id}" style="border:1px solid ${(d.shops || []).indexOf(w.id) >= 0 ? '#0F8378' : 'var(--line)'};
+              background:${(d.shops || []).indexOf(w.id) >= 0 ? '#EAF5F3' : '#fff'};
+              color:${(d.shops || []).indexOf(w.id) >= 0 ? '#0B6A61' : 'var(--ink2)'};
+              border-radius:8px;padding:6px 9px;font-size:11px;font-weight:600;cursor:pointer">${w.code} ${esc(w.name)}</button>`).join('')}
+        </div>
+      </div>` : ''}
+      <div class="tiny" style="margin-top:10px;line-height:1.7">
+        角色变更将立即改变该账号可见的功能与数据，并写入变更记录（操作人、时间、前后角色）。
+      </div>`,
+      `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
+       <button class="btn btn-pri" data-act="saveAccount">${s.mode === 'add' ? '创建账号' : '保存'}</button>`);
+  }
+
+  else if (s.type === 'dataMgr') {
+    html = dataMgrHTML();
+  }
+
+  else if (s.type === 'delConfirm') {
+    html = confirmDeleteHTML();
+  }
+
+  else if (s.type === 'roleLog') {
+    const logs = (D().roleLog || []).slice().reverse();
+    html = sheetWrap('角色变更记录', '用于权限受控与审计追溯',
+      logs.length ? `<div class="card" style="padding:10px 12px">
+        ${logs.map((l, i) => `
+          <div style="padding:7px 0;${i < logs.length - 1 ? 'border-bottom:1px dashed #EDF1F4' : ''}">
+            <div class="row" style="justify-content:space-between;gap:8px">
+              <b style="font-size:12px">${esc(l.who)}</b>
+              <span class="tiny" style="font-family:ui-monospace,Menlo,monospace">${esc(l.at)}</span>
+            </div>
+            <div class="tiny" style="margin-top:3px;line-height:1.6">${esc(l.by)}：${esc(l.note)}</div>
+          </div>`).join('')}
+      </div>` : `<div class="empty" style="padding:20px 0"><b>暂无变更记录</b>调整角色后会在这里留痕</div>`,
+      '<button class="btn btn-line" style="flex:1" data-act="sheetClose">关闭</button>');
+  }
+
+  else if (s.type === 'entity') {
+    const owners = (D().accounts || []).filter(a => a.role === 'production').map(a => a.name);
+    html = sheetWrap(s.mode === 'add' ? '新增' + s.label : '编辑' + s.label, '',
+      `<div class="fld">
+        <label>名称</label>
+        <input type="text" data-f="name" value="${esc(s.draft.name)}" placeholder="如：灌装间 / SJ2 制剂车间">
+      </div>
+      <div class="fld">
+        <label>编号</label>
+        <input type="text" data-f="code" value="${esc(s.draft.code)}" placeholder="如：C7-107 / SJ2F">
+      </div>
+      ${s.label === '房间' ? `
+      <div class="fld">
+        <label>整改回复人（长期生效，无需每次填写）</label>
+        <select data-f="replyOwner">
+          <option value="" ${!s.draft.replyOwner ? 'selected' : ''}>未指定</option>
+          ${owners.map(n => `<option value="${esc(n)}" ${s.draft.replyOwner === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+        </select>
+        <div class="tiny" style="margin-top:6px;line-height:1.7">
+          该房间产生的问题经合规确认后，将自动分配给所选回复人；如需更换在此修改即可。
+        </div>
+      </div>` : ''}
+      ${s.mode === 'add' && s.label === '房间' ? `<div class="tiny" style="margin-top:8px">将添加到「${esc(wsOf(s.wsId).name)}」，最多 12 个房间</div>` : ''}`,
+      `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
+       <button class="btn btn-pri" data-act="saveEntity">保存</button>`);
+  }
+
+  el('sheet').innerHTML = html;
+  el('sheet').classList.add('on');
+}
+
+/* ============================================================
+   业务动作
+   ============================================================ */
+function ensureDraft() {
+  if (!S.sheet.draft) S.sheet.draft = {};
+  return S.sheet.draft;
+}
+
+function saveFinding() {
+  const s = S.sheet, d = s.draft;
+  if (!String(d.title || '').trim()) { toast('请填写问题标题'); return; }
+  if (!String(d.desc || '').trim()) { toast('请填写问题描述'); return; }
+
+  const t = taskOf(s.taskId);
+  if (s.type === 'editFind') {
+    const f = findOf(s.findId);
+    if (!can('fixFinding', f)) { toast('仅可修改本人被退回的发现项'); return; }
+    f.title = d.title.trim();
+    f.desc = d.desc.trim();
+    f.level = d.level;
+    f.cats = (d.cats || []).slice();
+    f.photos = d.photos.slice();
+    f.status = 'pending';
+    f.foundAt = `${todayStr()} ${timeStr(new Date())}`;
+    f.returnNote = '';
+    toast('已重新提交，等待合规确认');
+  } else {
+    if (!can('inspect', t)) { toast('当前角色无权在该车间登记发现项'); return; }
+    const id = 'F-' + Date.now().toString(36).toUpperCase().slice(-6);
+    D().findings.unshift({
+      id, taskId: t.id, workshopId: t.workshopId, roomId: s.roomId,
+      title: d.title.trim(), desc: d.desc.trim(), level: d.level, cats: (d.cats || []).slice(), photos: d.photos.slice(),
+      status: 'pending', foundBy: t.assignee, foundAt: `${todayStr()} ${timeStr(new Date())}`,
+      confirmBy: null, confirmAt: null, returnNote: '', reply: null, replyDue: null
+    });
+    t.rooms = t.rooms || {};
+    t.rooms[s.roomId] = { checked: true, noIssue: false, at: `${todayStr()} ${timeStr(new Date())}` };
+    if (taskStatus(t) === 'pending') t.status = 'doing';
+    toast('发现项已登记，待合规确认');
+  }
+  if (D().drafts.find && D().drafts.find.taskId === s.taskId && D().drafts.find.roomId === s.roomId) D().drafts.find = null;
+  persist();
+  closeSheet();
+  render();
+}
+
+function markRoomOk(taskId, roomId) {
+  const t = taskOf(taskId);
+  if (!can('inspect', t)) { toast('当前角色无权修改该任务'); return; }
+  t.rooms = t.rooms || {};
+  t.rooms[roomId] = { checked: true, noIssue: true, at: `${todayStr()} ${timeStr(new Date())}` };
+  if (taskStatus(t) === 'pending') t.status = 'doing';
+  persist(); render();
+  toast('已标记本房间无异常');
+}
+
+function submitTask(taskId) {
+  const t = taskOf(taskId);
+  if (!can('inspect', t)) { toast('当前角色无权提交该任务'); return; }
+  const w = wsOf(t.workshopId);
+  const unchecked = w.rooms.filter(r => !(t.rooms || {})[r.id] || !(t.rooms[r.id].checked));
+  if (unchecked.length) { toast(`还有 ${unchecked.length} 个房间未检查`); return; }
+  const fs = findingsOfTask(t.id);
+  t.status = fs.length ? 'submitted' : 'closed';
+  t.visitAt = `${todayStr()} ${timeStr(new Date())}`;
+  persist(); render();
+  toast(fs.length ? `已提交，${fs.length} 项发现项待合规确认` : '巡检完成，未发现问题');
+}
+
+/* 按房间主数据自动指派整改回复人（合规确认时调用） */
+function autoAssignOwner(f) {
+  const r = roomOf(f.workshopId, f.roomId);
+  const ro = r && r.replyOwner ? r.replyOwner : '';
+  if (ro) f.autoOwner = ro;
+  return ro || '';
+}
+
+function doConfirm(findId, level, note) {
+  const f = findOf(findId);
+  if (!can('confirmFind', f)) {
+    toast(f.foundBy === me().name ? '不能确认本人登记的发现项（职责分离）' : '当前角色无权确认');
+    return;
+  }
+  f.status = 'confirmed';
+  f.level = level || f.level;
+  f.confirmBy = me().name;
+  f.confirmAt = `${todayStr()} ${timeStr(new Date())}`;
+  if (note) f.returnNote = '';
+  f.replyDue = addDays(D().settings.replyDays);
+  const ro = autoAssignOwner(f);
+  persist(); closeSheet(); render();
+  toast(ro ? `已确认并自动分配给 ${ro}（${D().settings.replyDays} 天内回复）`
+    : `已确认，推送整改回复人（${D().settings.replyDays} 天内回复）`);
+}
+
+function doReturn(findId, note) {
+  const f = findOf(findId);
+  if (!can('confirmFind', f)) { toast('当前角色无权退回该发现项'); return; }
+  f.status = 'returned';
+  f.returnNote = note;
+  f.confirmBy = me().name;
+  f.confirmAt = `${todayStr()} ${timeStr(new Date())}`;
+  persist(); closeSheet(); render();
+  toast('已退回巡检人补充');
+}
+
+function doReply(findId, owner, planDate, measures, photos, cats) {
+  const f = findOf(findId);
+  if (!can('replyFind', f)) {
+    toast(inMyShops(f) ? '当前角色无权回复该发现项' : '该发现项不在你分管车间范围');
+    return;
+  }
+  if (!String(measures || '').trim()) { toast('请填写整改措施'); return; }
+  if ((cats || []).length) f.cats = cats.slice();
+  if (D().drafts.reply && D().drafts.reply[findId]) delete D().drafts.reply[findId];
+  f.reply = { owner, planDate, measures: measures.trim(), photos: (photos || []).slice(), at: `${todayStr()} ${timeStr(new Date())}` };
+  f.status = 'replied';
+  persist(); closeSheet(); render();
+  toast('整改回复已提交');
+}
+
+function genMonthTasks() {
+  const m = month();
+  let created = 0;
+  D().workshops.forEach(w => {
+    const has = D().tasks.filter(t => t.month === m && t.workshopId === w.id).length;
+    const need = Math.max(0, D().settings.freq - has);
+    for (let i = 0; i < need; i++) {
+      D().tasks.push({
+        id: `T-${m.replace('-', '')}-${w.code}${i ? '-' + (i + 1) : ''}`,
+        month: m, workshopId: w.id, assignee: INSPECTORS[(D().tasks.length + i) % INSPECTORS.length],
+        due: `${m}-${new Date(m.slice(0, 4), +m.slice(5, 7), 0).getDate()}`,
+        visitAt: '', createdAt: `${todayStr()} ${timeStr(new Date())}`, createdBy: me().name,
+        status: 'pending', rooms: {}, note: ''
+      });
+      created++;
+    }
+  });
+  persist(); render();
+  toast(created ? `已补齐 ${created} 个巡检任务` : '本月任务已满足频率要求');
+}
+
+/* ============================================================
+   事件
+   ============================================================ */
+document.addEventListener('click', e => {
+  // 点击产线下拉面板以外区域时收起
+  if (S.lineOpen && !e.target.closest('[data-act="lineDrop"]') && !e.target.closest('[data-act="linePick"]')
+    && !e.target.closest('[data-act="lineClear"]')) {
+    S.lineOpen = false;
+    if (S.page === 'stats') { render(); }
+  }
+  if (S.catOpen && !e.target.closest('[data-act="catDrop"]') && !e.target.closest('[data-act="catPick"]')
+    && !e.target.closest('[data-act="catClear"]')) {
+    S.catOpen = false;
+    if (S.sheet) { renderSheet(); }
+  }
+  const t = e.target.closest('[data-act]');
+  if (!t) return;
+  const act = t.dataset.act;
+  const d = S.sheet ? S.sheet.draft : null;
+
+  switch (act) {
+    case 'tab': S.page = t.dataset.p; S.sub = {}; S.filter = 'all'; render(); break;
+    case 'back': {
+      const b = (PAGES[S.page] || {}).back || 'tasks';
+      if (S.page === 'room') { S.page = 'wdetail'; render(); }
+      else if (S.page === 'fdetail') { S.page = S.sub.from || b; render(); }
+      else { S.page = b; render(); }
+      break;
+    }
+    case 'wdetail': S.sub.taskId = t.dataset.id; S.page = 'wdetail'; render(); break;
+    case 'room': S.sub.roomId = t.dataset.id; S.page = 'room'; render(); break;
+    case 'roomView': S.sub.roomId = t.dataset.id; S.page = 'room'; render(); break;
+    case 'fdetail': S.sub.findId = t.dataset.id; S.sub.from = S.page; S.page = 'fdetail'; render(); break;
+    case 'filter': S.filter = t.dataset.k; render(); break;
+
+    case 'roleSheet':
+      openSheet({ type: 'role' }); break;
+    case 'pickRole':
+      S.role = t.dataset.k;
+      S.page = S.role === 'compliance' ? 'confirm' : S.role === 'production' ? 'replies' : 'tasks';
+      S.sub = {}; closeSheet(); render();
+      toast('已切换为' + ROLES[S.role].name);
+      break;
+
+    case 'newFind': {
+      const t2 = taskOf(S.sub.taskId);
+      openSheet({
+        type: 'newFind', taskId: t2.id, roomId: t.dataset.room,
+        draft: (D().drafts.find && D().drafts.find.taskId === t2.id && D().drafts.find.roomId === t.dataset.room)
+          ? JSON.parse(JSON.stringify(D().drafts.find.draft))
+          : { title: '', desc: '', level: 'major', cats: [], photos: [] }
+      });
+      break;
+    }
+    case 'editFind': {
+      const f = findOf(t.dataset.id);
+      openSheet({
+        type: 'editFind', taskId: f.taskId, roomId: f.roomId, findId: f.id,
+        draft: { title: f.title, desc: f.desc, level: f.level, cats: (f.cats || []).slice(), photos: (f.photos || []).slice() }
+      });
+      break;
+    }
+    case 'pickLevel':
+      if (d) { d.level = t.dataset.lv; }
+      document.querySelectorAll('.lv-pick button').forEach(b => b.classList.toggle('on', b.dataset.lv === d.level));
+      break;
+    case 'pickConfirmLevel':
+      if (d) { d.level = t.dataset.lv; }
+      document.querySelectorAll('.lv-pick button').forEach(b => b.classList.toggle('on', b.dataset.lv === d.level));
+      break;
+    case 'delPhoto':
+      if (d) { d.photos.splice(+t.dataset.i, 1); renderSheet(); }
+      break;
+    case 'saveFind': saveFinding(); break;
+    case 'markOk': markRoomOk(S.sub.taskId, t.dataset.room); break;
+    case 'submitTask': submitTask(t.dataset.id); break;
+
+    case 'openConfirm': {
+      const f = findOf(t.dataset.id);
+      openSheet({ type: 'confirm', findId: f.id, draft: { level: f.level, note: '' } });
+      break;
+    }
+    case 'quickConfirm': {
+      const f = findOf(t.dataset.id);
+      doConfirm(f.id, f.level, '');
+      break;
+    }
+    case 'doConfirm': {
+      const s = S.sheet;
+      doConfirm(s.findId, s.draft.level, s.draft.note);
+      break;
+    }
+    case 'openReturn': {
+      openSheet({ type: 'return', findId: t.dataset.id, draft: { note: '' } });
+      break;
+    }
+    case 'switchReturn': {
+      const s0 = S.sheet;
+      openSheet({ type: 'return', findId: s0.findId, draft: { note: s0.draft && s0.draft.note || '' } });
+      break;
+    }
+    case 'doReturn': {
+      const s = S.sheet;
+      if (!String(s.draft.note || '').trim()) { toast('请填写退回原因'); break; }
+      doReturn(s.findId, s.draft.note.trim());
+      break;
+    }
+    case 'openReply': {
+      const f = findOf(t.dataset.id);
+      const saved = D().drafts.reply && D().drafts.reply[f.id];
+      openSheet({
+        type: 'reply', findId: f.id,
+        draft: saved ? JSON.parse(JSON.stringify(saved))
+          : { owner: f.autoOwner || '', planDate: addDays(3), measures: '', cats: (f.cats || []).slice(), photos: [] }
+      });
+      break;
+    }
+    case 'pickOwner': {
+      if (!d) break;
+      const n = t.dataset.n;
+      const names = String(d.owner || '').split(/[、,，]/).map(x => x.trim()).filter(Boolean);
+      const ix = names.indexOf(n);
+      if (ix >= 0) names.splice(ix, 1); else names.push(n);
+      d.owner = names.join('、');
+      renderSheet();
+      break;
+    }
+    case 'doReply': {
+      const s = S.sheet;
+      if (!String(s.draft.owner || '').trim()) { toast('请填写整改责任人'); break; }
+      doReply(s.findId, s.draft.owner.trim(), s.draft.planDate, s.draft.measures, s.draft.photos || [], s.draft.cats || []);
+      break;
+    }
+    case 'saveDraftFind': {
+      const s = S.sheet;
+      D().drafts.find = { taskId: s.taskId, roomId: s.roomId, savedAt: `${todayStr()} ${timeStr(new Date())}`, draft: JSON.parse(JSON.stringify(s.draft)) };
+      persist(); closeSheet(); render();
+      toast('发现项草稿已保存，下次打开同一房间自动带出');
+      break;
+    }
+    case 'saveDraftReply': {
+      const s = S.sheet;
+      D().drafts.reply[s.findId] = JSON.parse(JSON.stringify(s.draft));
+      persist(); closeSheet(); render();
+      toast('回复草稿已保存，可稍后继续填写');
+      break;
+    }
+    case 'catDrop': S.catOpen = !S.catOpen; renderSheet(); break;
+    case 'catPick': {
+      if (!d) break;
+      d.cats = d.cats || [];
+      const c = t.dataset.c;
+      const ix = d.cats.indexOf(c);
+      if (ix >= 0) d.cats.splice(ix, 1); else d.cats.push(c);
+      renderSheet();
+      break;
+    }
+    case 'catClear': if (d) { d.cats = []; } S.catOpen = false; renderSheet(); break;
+
+    case 'newTask': {
+      // 巡检人新建任务默认指派给自己，并优先选中本月未安排的车间
+      const free = D().workshops.find(w => !D().tasks.some(x => x.month === month() && x.workshopId === w.id));
+      openSheet({
+        type: 'assign', taskId: null,
+        draft: {
+          workshopId: (free || D().workshops[0]).id,
+          assignee: S.role === 'inspector' ? me().name : INSPECTORS[0],
+          due: addDays(10)
+        }
+      });
+      break;
+    }
+    case 'assignTask': {
+      const tk = taskOf(t.dataset.id);
+      openSheet({ type: 'assign', taskId: tk.id, draft: { assignee: tk.assignee, due: tk.due } });
+      break;
+    }
+    case 'doAssign': {
+      const s = S.sheet, dd = s.draft;
+      if (!dd.due) { toast('请选择任务期限'); break; }
+      if (!can('assignTask')) { toast('当前角色无权分配任务'); break; }
+      const at = `${todayStr()} ${timeStr(new Date())}`;
+      if (s.taskId) {
+        const tk = taskOf(s.taskId);
+        if (!tk) { toast('任务不存在'); break; }
+        if (!can('reassign', tk)) {
+          toast(taskStatus(tk) === 'submitted' || taskStatus(tk) === 'processing' || taskStatus(tk) === 'closed'
+            ? '任务已提交，不能调整' : '只能调整本人负责的任务');
+          break;
+        }
+        const chg = [];
+        if (dd.assignee !== tk.assignee) chg.push(`巡检人 ${tk.assignee} → ${dd.assignee}`);
+        if (dd.due !== tk.due) chg.push(`期限 ${md(tk.due)} → ${md(dd.due)}`);
+        if (!chg.length) { closeSheet(); toast('未做任何调整'); break; }
+        tk.assignee = dd.assignee;
+        tk.due = dd.due;
+        tk.history = tk.history || [];
+        tk.history.push({ at, by: me().name, act: '调整任务', note: chg.join('；') });
+        persist(); closeSheet(); render();
+        toast('任务已调整并记录变更');
+      } else {
+        const w = wsOf(dd.workshopId);
+        const m = month();
+        D().tasks.push({
+          id: `T-${m.replace('-', '')}-${w.code}-M${Date.now().toString(36).slice(-3).toUpperCase()}`,
+          month: m, workshopId: w.id, assignee: dd.assignee, due: dd.due,
+          visitAt: '', createdAt: at, createdBy: me().name,
+          status: 'pending', rooms: {}, note: '',
+          history: [{ at, by: me().name, act: '创建并分配', note: `指派给 ${dd.assignee}，期限 ${dd.due}` }]
+        });
+        persist(); closeSheet();
+        if (S.page === 'me') S.page = 'tasks';
+        render();
+        toast('任务已分配给' + dd.assignee);
+      }
+      break;
+    }
+    case 'delTask': {
+      const id = t.dataset.id;
+      const tk = taskOf(id);
+      if (!tk) break;
+      const st = taskStatus(tk);
+      if (!can('withdraw', tk)) {
+        toast(S.role === 'inspector' ? '仅可撤回本人尚未开始的任务' : '已完成任务不能撤回');
+        break;
+      }
+      D().tasks = D().tasks.filter(x => x.id !== id);
+      D().findings = D().findings.filter(f => f.taskId !== id);
+      persist();
+      S.page = 'tasks'; S.sub = {}; render();
+      toast('任务已撤回');
+      break;
+    }
+
+    case 'goConfig': S.page = 'config'; S.sub = {}; render(); break;
+    case 'goAudit': S.page = 'audit'; S.sub = {}; render(); break;
+
+    case 'editAccount': {
+      if (!can('manageRole')) { toast('当前角色无权调整账号权限'); break; }
+      const u = (D().accounts || []).find(x => x.emp === t.dataset.emp);
+      if (!u) break;
+      openSheet({ type: 'account', mode: 'edit', emp: u.emp,
+        draft: { name: u.name, emp: u.emp, dept: u.dept, role: u.role, shops: (u.shops || []).slice() } });
+      break;
+    }
+    case 'addAccount':
+      if (!can('manageRole')) { toast('当前角色无权新增账号'); break; }
+      openSheet({ type: 'account', mode: 'add', draft: { name: '', emp: '', dept: '', role: DEFAULT_ROLE, shops: [] } });
+      break;
+    case 'pickShop':
+      if (d) {
+        d.shops = d.shops || [];
+        const i = d.shops.indexOf(t.dataset.ws);
+        if (i >= 0) d.shops.splice(i, 1); else d.shops.push(t.dataset.ws);
+        renderSheet();
+      }
+      break;
+    case 'saveAccount': {
+      if (!can('manageRole')) { toast('当前角色无权保存账号权限'); break; }
+      const s = S.sheet, dd = s.draft;
+      if (!String(dd.name || '').trim()) { toast('请填写姓名'); break; }
+      const at = `${todayStr()} ${timeStr(new Date())}`;
+      if (s.mode === 'add') {
+        const emp = String(dd.emp || '').trim() || 'DD-' + Date.now().toString().slice(-5);
+        if (D().accounts.some(x => x.emp === emp)) { toast('工号已存在'); break; }
+        D().accounts.push({ emp, name: dd.name.trim(), dept: dd.dept || '未分组', role: dd.role, shops: dd.shops || [], loginAt: at });
+        D().roleLog.push({ at, by: me().name, who: dd.name.trim(), note: `新增账号，角色 ${ROLES[dd.role].name}` });
+        toast('账号已创建：' + dd.name.trim() + '（' + ROLES[dd.role].name + '）');
+      } else {
+        const u = D().accounts.find(x => x.emp === s.emp);
+        const before = u.role;
+        const shopChg = (u.shops || []).join(',') !== (dd.shops || []).join(',');
+        if (before === dd.role && !shopChg) { closeSheet(); toast('未做任何调整'); break; }
+        u.role = dd.role;
+        u.shops = dd.shops || [];
+        const note = before !== dd.role
+          ? `角色 ${ROLES[before].name} → ${ROLES[dd.role].name}${shopChg ? '，分管车间已更新' : ''}`
+          : '分管车间已更新';
+        D().roleLog.push({ at, by: me().name, who: u.name, note });
+        // 若改的是自己，同步当前登录身份
+        if (u.name === me().name) {
+          STAFF[dd.role] = Object.assign({}, STAFF[dd.role], { name: u.name, emp: u.emp, dept: u.dept, shops: u.shops });
+          S.role = dd.role;
+          S.page = dd.role === 'compliance' ? 'confirm' : dd.role === 'production' ? 'replies' : 'tasks';
+        }
+        toast(note);
+      }
+      persist(); closeSheet(); render();
+      break;
+    }
+    case 'roleLog':
+      if (!can('manageRole')) { toast('无权查看'); break; }
+      openSheet({ type: 'roleLog' });
+      break;
+    case 'toggleWs':
+      S.sub.openWs = S.sub.openWs === t.dataset.id ? null : t.dataset.id;
+      render(); break;
+    case 'editWs': {
+      const w = wsOf(t.dataset.ws);
+      openSheet({ type: 'entity', label: '车间', mode: 'edit', wsId: w.id,
+        draft: { name: w.name, code: w.code }, _ref: w });
+      break;
+    }
+    case 'addWs':
+      openSheet({ type: 'entity', label: '车间', mode: 'add', draft: { name: '', code: '' } });
+      break;
+    case 'editRoom': {
+      const w = wsOf(t.dataset.ws);
+      const r = w.rooms.find(x => x.id === t.dataset.room);
+      openSheet({ type: 'entity', label: '房间', mode: 'edit', wsId: w.id,
+        draft: { name: r.name, code: r.code, replyOwner: r.replyOwner || '' }, _ref: r });
+      break;
+    }
+    case 'addRoom': {
+      const w = wsOf(t.dataset.ws);
+      openSheet({ type: 'entity', label: '房间', mode: 'add', wsId: w.id,
+        draft: { name: '', code: w.code + '-' + pad(w.rooms.length + 101), replyOwner: '' } });
+      break;
+    }
+    case 'delRoom': {
+      if (!can('manageData')) { toast('仅巡检人 / 合规管理可维护车间与房间'); break; }
+      const w = wsOf(t.dataset.ws);
+      if (w.rooms.length <= 1) { toast('每个车间至少保留 1 个房间'); break; }
+      w.rooms = w.rooms.filter(r => r.id !== t.dataset.room);
+      persist(); render(); toast('房间已删除');
+      break;
+    }
+    case 'saveEntity': {
+      if (!can('manageData')) { toast('仅巡检人 / 合规管理可维护车间与房间'); break; }
+      const s = S.sheet, dd = s.draft;
+      if (!String(dd.name || '').trim() || !String(dd.code || '').trim()) { toast('名称与编号不能为空'); break; }
+      if (s.mode === 'edit') {
+        s._ref.name = dd.name.trim();
+        s._ref.code = dd.code.trim();
+        if (s.label === '房间' && dd.replyOwner !== undefined) {
+          const before = s._ref.replyOwner || '';
+          s._ref.replyOwner = dd.replyOwner || '';
+          if (before !== s._ref.replyOwner) {
+            (D().roleLog = D().roleLog || []).push({
+              at: `${todayStr()} ${timeStr(new Date())}`, by: me().name, who: s._ref.code + ' ' + s._ref.name,
+              note: `房间整改回复人 ${before || '未指定'} → ${s._ref.replyOwner || '未指定'}`
+            });
+          }
+        }
+      } else if (s.label === '车间') {
+        D().workshops.push({ id: uid('W'), code: dd.code.trim(), name: dd.name.trim(), rooms: [
+          { id: uid('R'), code: dd.code.trim() + '-101', name: '待配置房间' }
+        ]});
+      } else {
+        const w = wsOf(s.wsId);
+        if (w.rooms.length >= 12) { toast('单个车间最多 12 个房间'); break; }
+        w.rooms.push({ id: uid('R'), code: dd.code.trim(), name: dd.name.trim(), replyOwner: dd.replyOwner || '' });
+      }
+      persist(); closeSheet(); render();
+      toast('已保存');
+      break;
+    }
+    case 'freqPlus':
+      if (!can('configPolicy')) { toast('仅合规管理可修改巡检频率'); break; }
+      D().settings.freq = Math.min(4, D().settings.freq + 1); persist(); render(); break;
+    case 'freqMinus':
+      if (!can('configPolicy')) { toast('仅合规管理可修改巡检频率'); break; }
+      D().settings.freq = Math.max(1, D().settings.freq - 1); persist(); render(); break;
+    case 'dayPlus':
+      if (!can('configPolicy')) { toast('仅合规管理可修改回复周期'); break; }
+      D().settings.replyDays = Math.min(15, D().settings.replyDays + 1); persist(); render(); break;
+    case 'dayMinus':
+      if (!can('configPolicy')) { toast('仅合规管理可修改回复周期'); break; }
+      D().settings.replyDays = Math.max(1, D().settings.replyDays - 1); persist(); render(); break;
+    case 'genMonth': genMonthTasks(); break;
+    case 'voice': voiceStart(t.dataset.f); break;
+    case 'mineOnly': S.mineOnly = !S.mineOnly; render(); break;
+    case 'sheetClose': closeSheet(); break;
+
+    case 'statPeriod':
+      S.period = t.dataset.k; render(); break;
+    case 'remind': openSheet({ type: 'remind' }); break;
+    case 'remindGo': {
+      const sub = JSON.parse(t.dataset.sub || '{}');
+      closeSheet();
+      go(t.dataset.p, sub);
+      break;
+    }
+    case 'lineDrop':
+      S.lineOpen = !S.lineOpen; render(); break;
+    case 'linePick': {
+      const k = t.dataset.k;
+      S.lines = S.lines || [];
+      const i = S.lines.indexOf(k);
+      if (i >= 0) S.lines.splice(i, 1); else S.lines.push(k);
+      S.lineOpen = true; render(); break;
+    }
+    case 'lineClear':
+      S.lines = []; S.lineOpen = true; render(); break;
+    case 'pickOne': {
+      const id = t.dataset.id;
+      S.picked = S.picked || [];
+      const i = S.picked.indexOf(id);
+      if (i >= 0) S.picked.splice(i, 1); else S.picked.push(id);
+      render();
+      break;
+    }
+    case 'pickAll': {
+      const pend = D().findings.filter(f => f.status === 'pending');
+      const cur = (S.picked || []).filter(id => pend.some(f => f.id === id));
+      S.picked = cur.length === pend.length ? [] : pend.map(f => f.id);
+      render();
+      break;
+    }
+    case 'batchConfirm': {
+      if (!can('confirmFind')) { toast('当前角色无权批量确认'); break; }
+      const ids = (S.picked || []).filter(id => {
+        const f = findOf(id);
+        return f && can('confirmFind', f);
+      });
+      if (!ids.length) { toast('请先勾选要确认的发现项'); break; }
+      const at = `${todayStr()} ${timeStr(new Date())}`;
+      const due = addDays(D().settings.replyDays);
+      ids.forEach(id => {
+        const f = findOf(id);
+        f.status = 'confirmed';
+        f.confirmBy = me().name;
+        f.confirmAt = at;
+        f.replyDue = due;
+        f.returnNote = '';
+        autoAssignOwner(f);
+      });
+      S.picked = [];
+      persist(); render();
+      toast(`已批量确认 ${ids.length} 项，回复期限 ${md(due)}`);
+      break;
+    }
+    case 'export': if (can('exportAll')) exportExcel(); else toast('仅合规管理可导出全量数据'); break;
+    case 'dataMgr':
+      if (!can('exportAll')) { toast('仅合规管理可进行数据管理'); break; }
+      openSheet({ type: 'dataMgr', draft: Object.assign({ range: 'month', from: '', to: '' }, S.del || {}) });
+      break;
+    case 'rangePick': {
+      const d = rangeDraft();
+      d.range = t.dataset.k;
+      if (d.range === 'custom' && (!d.from || !d.to)) {
+        // 自定义默认给最近 30 天，减少手输
+        const end = todayStr(), s0 = new Date(); s0.setDate(s0.getDate() - 29);
+        d.to = d.to || end;
+        d.from = d.from || `${s0.getFullYear()}-${pad(s0.getMonth() + 1)}-${pad(s0.getDate())}`;
+      }
+      renderSheet(); break;
+    }
+    case 'exportRange': {
+      if (!can('exportAll')) { toast('仅合规管理可导出数据'); break; }
+      const d = rangeDraft();
+      const b = rangeBounds(d.range, d);
+      if (!b) { toast('请选择完整的起止日期'); break; }
+      if (!deleteImpact(b).findings.length && !deleteImpact(b).tasks.length) { toast('该区间内没有数据可导出'); break; }
+      exportExcel(b, rangeLabel(b));
+      break;
+    }
+    case 'delRange': {
+      if (!can('exportAll')) { toast('仅合规管理可删除数据'); break; }
+      const d = rangeDraft();
+      const b = rangeBounds(d.range, d);
+      if (!b) { toast('请选择完整的起止日期'); break; }
+      if (!deleteImpact(b).findings.length && !deleteImpact(b).tasks.length) { toast('该区间内没有可删除的数据'); break; }
+      S.sheet = { type: 'delConfirm', draft: Object.assign({}, d) };
+      renderSheet();
+      break;
+    }
+    case 'delBack': S.sheet = { type: 'dataMgr', draft: Object.assign({}, rangeDraft()) }; renderSheet(); break;
+    case 'delConfirm':
+      if (!can('exportAll')) { toast('仅合规管理可删除数据'); break; }
+      doDeleteRange();
+      break;
+    case 'reset':
+      S.data = seed(); persist();
+      S.page = 'tasks'; S.sub = {}; S.filter = 'all';
+      closeSheet(); render();
+      toast('演示数据已重置');
+      break;
+  }
+});
+
+/* 输入同步 */
+document.addEventListener('input', e => {
+  const f = e.target.closest('[data-f]');
+  if (!f || !S.sheet || !S.sheet.draft) return;
+  S.sheet.draft[f.dataset.f] = f.value;
+  // 数据管理自定义日期：实时刷新统计预览
+  if (S.sheet.type === 'dataMgr') { renderSheet(); return; }
+  // 用户手动改动正在听写的字段 → 结束听写，避免覆盖人工输入
+  if (S.voice && !S.voice.applying && S.voice.field === f.dataset.f) { voiceStop(); renderSheet(); }
+});
+document.addEventListener('change', e => {
+  const f = e.target.closest('[data-f]');
+  if (f && S.sheet && S.sheet.draft) { S.sheet.draft[f.dataset.f] = f.value; return; }
+  const file = e.target.closest('[data-photo]');
+  if (file && file.files && file.files.length) {
+    const s = S.sheet;
+    const files = Array.prototype.slice.call(file.files, 0, 3);
+    let pending = files.length;
+    files.forEach(fl => compress(fl, url => {
+      if (s && s.draft && url) s.draft.photos.push(url);
+      if (--pending === 0) renderSheet();
+    }));
+    file.value = '';
+  }
+});
+
+function compress(file, cb) {
+  const fr = new FileReader();
+  fr.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 300;
+      const r = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * r);
+      c.height = Math.round(img.height * r);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      cb(c.toDataURL('image/jpeg', 0.62));
+    };
+    img.onerror = () => cb('');
+    img.src = ev.target.result;
+  };
+  fr.onerror = () => cb('');
+  fr.readAsDataURL(file);
+}
+
+/* ---------- 导出（Excel） ---------- */
+function xlsCell(v, style) {
+  const t = typeof v === 'number' && isFinite(v) ? 'Number' : 'String';
+  const s = String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="${t}">${s}</Data></Cell>`;
+}
+function xlsRow(cells, style) {
+  return `<Row>${cells.map(c => xlsCell(c, style)).join('')}</Row>`;
+}
+
+/* ============================================================
+   数据管理：按日期范围统计 / 删除 / 导出
+   ============================================================ */
+const RANGES = [
+  { k: 'month', n: '本月' },
+  { k: 'lastMonth', n: '上月' },
+  { k: 'quarter', n: '本季度' },
+  { k: 'year', n: '本年度' },
+  { k: 'all', n: '全部' },
+  { k: 'custom', n: '自定义' }
+];
+const RANGE_NAME = k => (RANGES.find(r => r.k === k) || {}).n || k;
+function mAdd(ym, delta) {
+  const y = +ym.slice(0, 4), m0 = +ym.slice(5, 7) - 1 + delta;
+  return `${y + Math.floor(m0 / 12)}-${pad(((m0 % 12) + 12) % 12 + 1)}`;
+}
+
+/* 按维度取日期：发现项按发现时间，任务按任务月份 */
+function dateOfItem(kind, x) { return kind === 'find' ? (x.foundAt || '').slice(0, 10) : (x.month || ''); }
+
+/* 计算区间范围（闭区间） */
+function rangeBounds(range, draft) {
+  const today = todayStr();
+  const cur = today.slice(0, 7);
+  const d = draft || {};
+  const custom = (from, to) => (from && to && from <= to ? { from, to } : null);
+  switch (range) {
+    case 'month': return { from: cur, to: cur };
+    case 'lastMonth': { const lm = mAdd(cur, -1); return { from: lm, to: lm }; }
+    case 'quarter': {
+      const y = today.slice(0, 4), q = Math.floor((+today.slice(5, 7) - 1) / 3);
+      return { from: `${y}-${pad(q * 3 + 1)}`, to: `${y}-${pad(q * 3 + 3)}` };
+    }
+    case 'year': return { from: today.slice(0, 4), to: today.slice(0, 4) };
+    case 'all': return { from: '', to: '' };
+    case 'custom': return custom(d.from, d.to);
+    default: return null;
+  }
+}
+/* 区间比较：范围可为 YYYY-MM（任务）或 YYYY-MM-DD（发现项），统一截断到较短长度比较 */
+function inBounds(x, b) {
+  if (!b) return false;
+  if (!b.from && !b.to) return true;
+  const n = Math.min(b.from ? b.from.length : b.to.length, b.to ? b.to.length : b.from.length);
+  const v = (x || '').slice(0, n || 10);
+  if (!v) return false;
+  return (!b.from || v >= b.from) && (!b.to || v <= b.to);
+}
+/* 区间内数据 */
+function rangeData(b) {
+  const fs = D().findings.filter(f => inBounds(dateOfItem('find', f), b));
+  const ts = D().tasks.filter(t => inBounds(dateOfItem('task', t), b));
+  const ids = {}; ts.forEach(t => { ids[t.id] = 1; });
+  // 发现项所属任务若在区间内，也纳入任务统计（口径一致）
+  return { findings: fs, tasks: ts, taskIds: ids };
+}
+function rangeLabel(b) {
+  if (!b) return '无效区间';
+  if (!b.from && !b.to) return '全部数据';
+  return `${b.from || '最早'} ~ ${b.to || '至今'}`;
+}
+/* 删除影响面：区间内发现项 + 区间内任务 + 因删除发现项而失去全部发现项、且不属于其它保留任务的数据 */
+function deleteImpact(b) {
+  const { findings: fs, tasks: ts } = rangeData(b);
+  return { findings: fs, tasks: ts };
+}
+function rangeDraft() {
+  // 打开弹层时由 openSheet 注入 draft；未注入时用全局暂存，保证区间选择不丢
+  if (S.sheet && (S.sheet.type === 'dataMgr' || S.sheet.type === 'delConfirm') && S.sheet.draft) return S.sheet.draft;
+  if (!S.del) S.del = { range: 'month', from: '', to: '' };
+  return S.del;
+}
+
+function doDeleteRange() {
+  const d = rangeDraft();
+  const b = rangeBounds(d.range, d);
+  if (!b) { toast('请选择完整的起止日期（开始日期不能晚于结束日期）'); return; }
+  const imp = deleteImpact(b);
+  if (!imp.findings.length && !imp.tasks.length) { toast('该区间内没有可删除的数据'); return; }
+  const fIds = {}; imp.findings.forEach(f => { fIds[f.id] = 1; });
+  const tIds = {}; imp.tasks.forEach(t => { tIds[t.id] = 1; });
+  const before = { f: D().findings.length, t: D().tasks.length };
+
+  D().findings = D().findings.filter(f => !fIds[f.id]);
+  D().tasks = D().tasks.filter(t => !tIds[t.id]);
+  // 清理指向已删任务的残留发现项（理论上不会出现，防御性处理）
+  D().findings = D().findings.filter(f => taskOf(f.taskId) || !tIds[f.taskId]);
+
+  (D().deleteLog = D().deleteLog || []).unshift({
+    at: `${todayStr()} ${timeStr(new Date())}`,
+    by: me().name, range: rangeLabel(b), bounds: { from: b.from, to: b.to },
+    findings: before.f - D().findings.length, tasks: before.t - D().tasks.length
+  });
+  S.picked = []; S.del = { range: d.range, from: d.from, to: d.to };
+  persist(); closeSheet(); render();
+  toast(`已删除 ${before.f - D().findings.length} 条发现项 / ${before.t - D().tasks.length} 个任务，操作已记入删除日志`);
+}
+
+/* ============================================================
+   数据管理弹层（按日期导出 / 删除）
+   ============================================================ */
+function dataMgrHTML() {
+  const d = rangeDraft();
+  const b = rangeBounds(d.range, d);
+  const imp = b ? deleteImpact(b) : { findings: [], tasks: [] };
+  const total = { f: D().findings.length, t: D().tasks.length };
+  const valid = !!b && (imp.findings.length || imp.tasks.length);
+  const isAll = b && !b.from && !b.to;
+
+  const rangeChips = `
+  <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    ${RANGES.map(r => `
+      <button data-act="rangePick" data-k="${r.k}" style="border:1px solid ${d.range === r.k ? 'var(--pri)' : 'var(--line)'};
+        background:${d.range === r.k ? 'var(--pri-l)' : '#fff'};color:${d.range === r.k ? 'var(--pri)' : 'var(--ink2)'};
+        border-radius:14px;padding:5px 11px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit">
+        ${r.n}</button>`).join('')}
+  </div>`;
+
+  const custom = d.range === 'custom' ? `
+  <div class="row" style="gap:8px;margin-bottom:10px">
+    <div class="fld" style="flex:1;margin-top:0">
+      <label>开始日期</label>
+      <input type="date" data-f="from" value="${esc(d.from)}">
+    </div>
+    <div class="fld" style="flex:1;margin-top:0">
+      <label>结束日期</label>
+      <input type="date" data-f="to" value="${esc(d.to)}">
+    </div>
+  </div>` : '';
+
+  const stat = `
+  <div class="card" style="padding:12px 14px;margin-bottom:10px">
+    <div class="row" style="justify-content:space-between">
+      <div class="tiny">统计区间</div>
+      <b style="font-size:12px;color:${b ? 'var(--ink)' : 'var(--red)'}">${esc(b ? rangeLabel(b) : '请选择完整日期')}</b>
+    </div>
+    <div class="row" style="gap:10px;margin-top:10px">
+      <div style="flex:1;background:#F7FAFB;border-radius:9px;padding:9px 11px">
+        <div style="font-size:18px;font-weight:750;letter-spacing:-.4px">${imp.findings.length}
+          <span class="tiny" style="font-weight:500">/ ${total.f}</span></div>
+        <div class="tiny" style="margin-top:2px">发现项</div>
+      </div>
+      <div style="flex:1;background:#F7FAFB;border-radius:9px;padding:9px 11px">
+        <div style="font-size:18px;font-weight:750;letter-spacing:-.4px">${imp.tasks.length}
+          <span class="tiny" style="font-weight:500">/ ${total.t}</span></div>
+        <div class="tiny" style="margin-top:2px">巡检任务</div>
+      </div>
+    </div>
+    ${imp.findings.length ? `<div class="tiny" style="margin-top:10px;line-height:1.7">
+      区间内级别分布：${Object.keys(LEVELS).map(k => {
+        const n = imp.findings.filter(f => f.level === k).length;
+        return n ? `${LEVELS[k].name} ${n}` : '';
+      }).filter(Boolean).join(' · ')}</div>` : ''}
+  </div>`;
+
+  const warn = valid ? `
+  <div style="background:${isAll ? '#FDEDED' : '#FEF7EA'};border:1px solid ${isAll ? '#F3C9C9' : '#F1DCB5'};
+    border-radius:10px;padding:10px 11px;margin-bottom:4px">
+    <div style="font-size:11.5px;font-weight:650;color:${isAll ? 'var(--red)' : '#8A6417'};line-height:1.6">
+      ${isAll ? '⚠ 将删除全部数据' : '⚠ 删除后不可恢复'}</div>
+    <div class="tiny" style="margin-top:4px;line-height:1.7;color:#7A5F2E">
+      删除区间内的 ${imp.findings.length} 条发现项与 ${imp.tasks.length} 个任务（含其照片、确认与回复记录）。
+      涉及 GMP 记录，删除操作将记入删除日志（操作人、时间、区间、条数）。建议先导出留档。
+    </div>
+  </div>` : '';
+
+  return sheetWrap('数据管理', '按日期区间批量导出或删除',
+    rangeChips + custom + stat + warn,
+    `<button class="btn btn-line" style="flex:0 0 96px" data-act="exportRange" ${valid ? '' : 'disabled style="opacity:.5"'}>导出</button>
+     <button class="btn btn-line" style="flex:0 0 96px;color:var(--red);border-color:#F0C9C9" data-act="delRange" ${valid ? '' : 'disabled style="opacity:.5"'}>删除</button>
+     <button class="btn btn-pri" style="flex:1" data-act="sheetClose">取消</button>`);
+}
+
+/* 删除前二次确认：列出实际影响 */
+function confirmDeleteHTML() {
+  const d = rangeDraft();
+  const b = rangeBounds(d.range, d);
+  const imp = b ? deleteImpact(b) : { findings: [], tasks: [] };
+  const isAll = b && !b.from && !b.to;
+  return sheetWrap('确认删除？', esc(rangeLabel(b)),
+    `<div style="background:#FDEDED;border:1px solid #F3C9C9;border-radius:10px;padding:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--red);line-height:1.5">
+        将永久删除 ${imp.findings.length} 条发现项、${imp.tasks.length} 个巡检任务</div>
+      <div class="tiny" style="margin-top:6px;line-height:1.75;color:#8A4A4A">
+        ${isAll ? '这是全部数据，删除后系统将为空，仅可重置恢复演示样本。<br>' : ''}
+        删除包含照片、合规确认意见、生产整改回复等全部关联记录，不可撤销。此操作会以「${esc(me().name)}」名义记入删除日志。
+      </div>
+    </div>
+    ${imp.tasks.length ? `<div class="tiny" style="margin-top:10px;line-height:1.8">
+      涉及任务：${imp.tasks.slice(0, 6).map(t => esc(t.id)).join('、')}${imp.tasks.length > 6 ? ` 等 ${imp.tasks.length} 个` : ''}
+    </div>` : ''}
+    ${imp.findings.length ? `<div class="tiny" style="margin-top:6px;line-height:1.8">
+      涉及发现项：${imp.findings.slice(0, 4).map(f => esc(f.title)).join('、')}${imp.findings.length > 4 ? ` 等 ${imp.findings.length} 项` : ''}
+    </div>` : ''}`,
+    `<button class="btn btn-line" style="flex:1" data-act="delBack">返回</button>
+     <button class="btn" style="flex:1;background:var(--red);color:#fff" data-act="delConfirm">确认删除</button>`);
+}
+
+function exportExcel(bounds, label) {
+  const B = bounds || { from: '', to: '' };
+  const data = rangeData(B);
+  // Sheet1：发现项明细
+  const head1 = ['发现项编号', '车间', '房间编号', '房间名称', '问题标题', '问题描述', '级别', '发现项分类',
+    '状态', '发现人', '发现时间', '确认人', '确认时间', '回复期限', '自动分配回复人', '整改责任人', '计划完成', '整改措施', '回复时间'];
+  const rows1 = [xlsRow(head1, 'h')];
+  data.findings.forEach(f => {
+    const w = wsOf(f.workshopId) || { name: '' };
+    const r = roomOf(f.workshopId, f.roomId) || { code: '', name: '' };
+    rows1.push(xlsRow([
+      f.id, w.name, r.code, r.name, f.title, f.desc, (LEVELS[f.level] || {}).name || f.level,
+      (f.cats || []).join('、'),
+      (FIND_ST[f.status] || {}).name || f.status, f.foundBy, f.foundAt, f.confirmBy || '', f.confirmAt || '',
+      f.replyDue || '', f.autoOwner || '', f.reply ? f.reply.owner : '', f.reply ? f.reply.planDate : '',
+      f.reply ? f.reply.measures : '', f.reply ? f.reply.at : ''
+    ]));
+  });
+  // Sheet2：巡检任务汇总
+  const head2 = ['任务编号', '车间', '巡检人', '创建人', '创建时间', '任务期限', '巡检时间', '状态', '发现项数'];
+  const rows2 = [xlsRow(head2, 'h')];
+  data.tasks.forEach(t => {
+    const w = wsOf(t.workshopId) || { name: '' };
+    rows2.push(xlsRow([
+      t.id, w.name, t.assignee, t.createdBy || '', t.createdAt || '', t.due || '', t.visitAt || '',
+      (TASK_ST[taskStatus(t)] || {}).name || '', findingsOfTask(t.id).length
+    ]));
+  });
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#0F8378" ss:Pattern="Solid"/><Alignment ss:Vertical="Center"/></Style>
+ </Styles>
+ <Worksheet ss:Name="发现项明细"><Table>${rows1.join('')}</Table></Worksheet>
+ <Worksheet ss:Name="巡检任务汇总"><Table>${rows2.join('')}</Table></Worksheet>
+</Workbook>`.replace(/\n/g, '\r\n');
+  const tag = label === '全部数据' || !label ? '' : `_${String(label).replace(/[^\d\-~]/g, '').replace(/~/, '-')}`;
+  try {
+    const blob = new Blob(['\ufeff' + xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `车间巡检数据${tag}_${todayStr()}.xls`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    toast(`已导出 ${data.findings.length} 条发现项 / ${data.tasks.length} 个任务`);
+  } catch (err) {
+    toast('当前预览环境不支持下载，请在浏览器中打开本文件');
+  }
+}
+
+/* 启动 */
+boot();
+
+/* 测试钩子：单文件离线原型，暴露状态与核心函数给自动化回归脚本使用 */
+window.__t = {
+  get S() { return S; }, set S(v) { S = v; },
+  me, D, boot, render, go, openSheet, closeSheet,
+  findOf, taskOf, wsOf, roomOf, inPeriod, taskStatus, can, myPerms,
+  voiceStart, voiceStop, voiceSupported, lineList, scopeWs, myReminders,
+  rangeBounds, rangeData, rangeLabel, deleteImpact, doDeleteRange, exportExcel, RANGES,
+  doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll
+};
+</script>
+</body>
+</html>
