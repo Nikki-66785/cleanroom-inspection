@@ -349,28 +349,8 @@ body{
   <div id="login" data-page-node-id="lgnLayer01"></div>
 </div>
 
-<!-- CloudBase Web SDK v3（ESM，esm.sh 自动打包依赖；失败自动切换备用源；仅云端模式需要） -->
-<script>
-(function loadSdk() {
-  const sources = [
-    'https://esm.sh/@cloudbase/js-sdk@3.10.3',
-    'https://esm.sh/@cloudbase/js-sdk@3.9.4',
-    'https://unpkg.com/@cloudbase/js-sdk@3.10.3/dist/index.esm.js?module'
-  ];
-  let i = 0;
-  const tryNext = () => {
-    if (i >= sources.length) return;
-    const s = document.createElement('script');
-    s.type = 'module';
-    s.textContent = "import cloudbase from '" + sources[i] + "'; window.cloudbase = cloudbase.default || cloudbase;";
-    s.onerror = () => { i++; tryNext(); };
-    // module 脚本 import 失败不触发 onerror，用轮询兜底
-    document.head.appendChild(s);
-    setTimeout(() => { if (!window.cloudbase) { i++; tryNext(); } }, 6000);
-  };
-  tryNext();
-})();
-</script>
+<!-- CloudBase Web SDK：经典版环境使用 v1 全量构建（新平台环境可换 v3 ESM，本页代码两者兼容） -->
+<script src="https://static.cloudbase.net/cloudbase-js-sdk/2.17.5/cloudbase.full.js"></script>
 <script>
 /* ============================================================
    洁净车间巡检管理系统（多角色）
