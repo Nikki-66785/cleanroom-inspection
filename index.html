@@ -432,6 +432,8 @@ const DEFAULT_ACCOUNTS = [
   { emp: 'DD-20345', name: '刘洋', dept: '生产制造部', role: 'production', shops: ['W1', 'W2'], loginAt: '2026-10-08 08:31' }
 ];
 const INSPECTORS = ['张伟', '李静', '周敏'];
+/* 出厂角色形象备份：退出登录时还原，避免云端账号名残留 */
+const STAFF0 = JSON.parse(JSON.stringify(STAFF));
 
 /* ---------- 权限声明表（唯一可信来源） ----------
    roles: 允许的角色；scope: 数据范围；on: 状态门槛
@@ -626,10 +628,11 @@ function restHeaders(token) {
   if (t) h.Authorization = 'Bearer ' + t;
   return h;
 }
-/* 换匿名 token（1 小时内复用）；8 秒超时避免网关不可达时长挂 */
+/* 换匿名 token（1 小时内复用）；8 秒超时避免网关不可达时长挂；失败后 60 秒内熔断，之后自动允许重试 */
 let restFailed = false;
 function restToken() {
-  if (restFailed) return Promise.reject(new Error('rest unavailable'));
+  if (restFailed && Date.now() - (REST.failAt || 0) < 60000) return Promise.reject(new Error('网关暂不可达（60 秒后自动重试）'));
+  if (restFailed) restFailed = false;   // 熔断冷却结束，允许重试
   if (REST.token && Date.now() - REST.tokenAt < 50 * 60 * 1000) return Promise.resolve(REST.token);
   if (!restNeed()) return Promise.reject(new Error('no env'));
   const ctl = typeof AbortController === 'function' ? new AbortController() : null;
@@ -644,9 +647,15 @@ function restToken() {
     REST.token = j.access_token; REST.tokenAt = Date.now();
     return REST.token;
   })).catch(e => {
-    REST.token = ''; restFailed = true;   // 网关不可达：本次会话不再重试，直接走同步服务/本地
+    REST.token = ''; restFailed = true; REST.failAt = Date.now();   // 短暂熔断，避免每次操作都等 8 秒超时
     throw e;
   }).finally(() => clearTimeout(timer));
+}
+function cloudRetry() {
+  restFailed = false; REST.failAt = 0; CLOUD.err = false;
+  if (CLOUD.timer) { clearInterval(CLOUD.timer); CLOUD.timer = null; }
+  CLOUD.on = false; CLOUD.mode = '';
+  cloudInit().then(on => { render(); toast(on ? '已连接云端' : '云端连接失败，仍为本地模式'); });
 }
 /* EJSON 宽松解析：{"$numberInt":"2"} → 2 */
 function ejsonNorm(v) {
@@ -1221,6 +1230,11 @@ function afterLogin(u, quiet) {
   // 权限绑定：按云端绑定表确定角色，未绑定账号为只读预览
   const roleChanged = S.role !== applyRoleBinding(u);
   S.role = applyRoleBinding(u);
+  // 身份统一：显示名 = 云端登录账号（不再是演示人物），并覆盖工号/部门为账号信息
+  const display = CLOUD.user.username || CLOUD.user.name || CLOUD.user.email || CLOUD.user.phone || '登录用户';
+  STAFF[S.role] = Object.assign({}, STAFF0[S.role] || STAFF[S.role], {
+    name: display, emp: '云端账号', dept: ROLES[S.role].dept
+  });
   persist();
   if (!quiet) toast(S.role === DEFAULT_ROLE ? '登录成功（未分配权限，当前只读预览）'
     : `登录成功，已绑定角色：${ROLES[S.role].name}`);
@@ -1235,6 +1249,14 @@ function loginLabel() {
   const u = CLOUD.user || {};
   return u.username || u.email || u.phone || (u.id ? String(u.id).slice(0, 12) : '已登录');
 }
+/* 本地模式原因（用于「我的」页诊断展示） */
+function cloudFailReason() {
+  if (!CLOUD_DB.env) return '未配置环境';
+  if (!restNeed() && !window.cloudbase) return '网络 SDK/网关均不可用';
+  if (restFailed) return '云开发网关暂不可达';
+  if (CLOUD.err) return '云端推送失败';
+  return '尚未连接，可点右侧重试';
+}
 /* 退出登录：清除 CloudBase 会话，回到登录页，角色回落默认 */
 function doLogout() {
   const app = authApp();
@@ -1242,6 +1264,8 @@ function doLogout() {
   const fin = () => {
     AUTH.user = null; AUTH.info = null; AUTH.err = ''; AUTH.sending = false;
     CLOUD.user = null;
+    // 还原出厂角色形象（去掉云端账号覆盖的姓名/工号）
+    Object.keys(STAFF0).forEach(k => { STAFF[k] = Object.assign({}, STAFF0[k]); });
     S.role = DEFAULT_ROLE;
     if (AUTH.on !== undefined) AUTH.on = true;
     restAuthClear();
@@ -2154,14 +2178,10 @@ function renderMe() {
         <div class="tiny" style="margin-top:5px">${m.emp} · ${m.dept}</div>
       </div>
     </div>
-    <div class="row" style="margin-top:11px;padding:8px 10px;background:#F4F8FA;border-radius:8px;gap:6px">
-      <span style="font-size:11px;color:var(--ink3)">身份来源</span>
-      <span style="font-size:11.5px;font-weight:600;color:var(--ink2)">${esc(r.src)}</span>
-      <span class="tag ok" style="margin-left:auto;font-size:9.5px">已认证</span>
-    </div>
-    <div class="row" style="margin-top:6px;padding:7px 10px;border-radius:8px;gap:6px;background:${CLOUD.on ? '#F2F9F7' : '#F4F6F8'}">
+    <div class="row" style="margin-top:11px;padding:8px 10px;background:${CLOUD.on ? '#F2F9F7' : '#F4F6F8'};border-radius:8px;gap:6px">
       <span style="font-size:11px;color:var(--ink3)">数据模式</span>
-      <span style="font-size:11.5px;font-weight:600;color:${CLOUD.on ? 'var(--pri)' : 'var(--ink2)'}">${CLOUD.on ? '多人共享（云端实时同步）' : '本地模式（数据仅存本机）'}</span>
+      <span style="font-size:11.5px;font-weight:600;color:${CLOUD.on ? 'var(--pri)' : 'var(--ink2)'}">${CLOUD.on ? '多人共享（云端实时同步）' : '本地模式（' + cloudFailReason() + '）'}</span>
+      ${!CLOUD.on && CLOUD_DB.env ? '<span data-act="cloudRetry" style="margin-left:auto;font-size:11.5px;font-weight:600;color:var(--blue);cursor:pointer;white-space:nowrap">重新连接</span>' : ''}
     </div>
     ${authEnabled() && CLOUD.user ? `<div class="row" style="margin-top:6px;padding:7px 10px;border-radius:8px;gap:6px;background:#F4F8FA">
       <span style="font-size:11px;color:var(--ink3)">登录账号</span>
@@ -3415,6 +3435,7 @@ function handleAction(act, t, d) {
     case 'goConfig': S.page = 'config'; S.sub = {}; render(); break;
     case 'goAudit': S.page = 'audit'; S.sub = {}; render(); break;
     case 'logout': doLogout(); break;
+    case 'cloudRetry': cloudRetry(); break;
 
     case 'editAccount': {
       if (!can('manageRole')) { toast('当前角色无权调整账号权限'); break; }
@@ -4053,7 +4074,7 @@ window.__t = {
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSend, loginSubmit, doFinishLogin,
   dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData,
   applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel,
-  restNeed, restToken, restLoadDb, restSaveDb, restAuthCall, restAuthRestore, restAuthClear, REST
+  restNeed, restToken, restLoadDb, restSaveDb, restAuthCall, restAuthRestore, restAuthClear, REST, cloudRetry, cloudFailReason
 };
 </script>
 </body>
