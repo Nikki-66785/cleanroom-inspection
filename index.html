@@ -596,7 +596,7 @@ function dbReady() {
   if (CLOUD_DB.db) return Promise.resolve(CLOUD_DB.db);
   if (!CLOUD_DB.env) return Promise.reject(new Error('no env'));
   if (!window.cloudbase) return Promise.reject(new Error('sdk missing'));
-  CLOUD_DB.app = window.cloudbase.init({
+  CLOUD_DB.app = (typeof AUTH !== 'undefined' && AUTH.app) || window.cloudbase.init({
     env: CLOUD_DB.env, region: CLOUD_DB.region,
     ...(CLOUD_DB.clientId ? { clientId: CLOUD_DB.clientId } : {}),
     ...(CLOUD_DB.accessKey ? { accessKey: CLOUD_DB.accessKey } : {})
