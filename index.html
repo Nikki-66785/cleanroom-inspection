@@ -864,6 +864,12 @@ function authApp() {
    密码登录 auth.signIn({ username, password })
    登录态 auth.getCurrentUser() / auth.getLoginState()（视版本可用） */
 const phoneE164 = s => { s = String(s || '').trim(); return /^\+/.test(s) ? s : ('+86 ' + s); };
+const fmtAuthErr = (e, fallback) => {
+  if (!e) return fallback;
+  const code = e.code || e.error_code || e.status || '';
+  const msg = e.message || e.error_message || e.msg || '';
+  return (msg || fallback) + (code ? `（${code}）` : '');
+};
 const loginStateUser = ls => {
   if (!ls) return null;
   if (ls.user) return ls.user;
@@ -952,7 +958,7 @@ function loginSend() {
     if (m === 'pwd') return doFinishLogin(r);
     AUTH.info.verify = r;      // { verification_id, is_user }
     AUTH.info.sent = true;
-  }).catch(e => { AUTH.err = (e && (e.message || e.error_message)) || '发送失败，请稍后重试'; })
+  }).catch(e => { console.error('[登录-密码] 完整错误：', e); AUTH.err = fmtAuthErr(e, '登录失败，请稍后重试'); })
     .finally(() => { AUTH.sending = false; renderLogin(); });
 }
 function doFinishLogin(ls) {
@@ -996,7 +1002,7 @@ function loginSubmit() {
     }).then(ls => ls || auth.signIn({ username: isPhone ? phoneE164(acc) : acc, password: randPwd }));
   });
   check.then(ls => doFinishLogin(ls))
-    .catch(e => { AUTH.err = (e && (e.message || e.error_message)) || '验证失败，请核对验证码'; })
+    .catch(e => { console.error('[登录-验证码] 完整错误：', e); AUTH.err = fmtAuthErr(e, '验证失败，请核对验证码'); })
     .finally(() => { AUTH.sending = false; renderLogin(); });
 }
 function afterLogin(u) {
