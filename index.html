@@ -579,6 +579,7 @@ const month = () => monthStr();
 const CLOUD_DB = {
   env: 'cleanroom-3gk2-0dggge34t19e49fd3',  // CloudBase 环境 ID（已配置）
   region: 'ap-shanghai',
+  clientId: '',            // 应用客户端 ID（控制台「应用」里可查，部分环境认证必填）
   accessKey: '',           // Publishable Key（匿名/自定义登录场景可选）
   collection: 'app_state',
   docId: 'main',
@@ -597,6 +598,7 @@ function dbReady() {
   if (!window.cloudbase) return Promise.reject(new Error('sdk missing'));
   CLOUD_DB.app = window.cloudbase.init({
     env: CLOUD_DB.env, region: CLOUD_DB.region,
+    ...(CLOUD_DB.clientId ? { clientId: CLOUD_DB.clientId } : {}),
     ...(CLOUD_DB.accessKey ? { accessKey: CLOUD_DB.accessKey } : {})
   });
   CLOUD_DB.db = CLOUD_DB.app.database();
@@ -847,11 +849,20 @@ function authApp() {
   if (!AUTH.app && authEnabled()) {
     AUTH.app = CLOUD_DB.app || window.cloudbase.init({
       env: CLOUD_DB.env, region: CLOUD_DB.region,
+      ...(CLOUD_DB.clientId ? { clientId: CLOUD_DB.clientId } : {}),
       ...(CLOUD_DB.accessKey ? { accessKey: CLOUD_DB.accessKey } : {})
     });
   }
   return AUTH.app;
 }
+/* CloudBase Web v2 认证 API：
+   发码 auth.getVerification({ phone_number | email }) → { verification_id, is_user }
+   手机登录 auth.signInWithSms({ verificationInfo, verificationCode, phoneNum })
+   邮箱登录 auth.signInWithEmail({ verificationInfo, verificationCode, email })
+   密码登录 auth.signIn({ username, password })
+   登录态 auth.getCurrentUser() / auth.getLoginState()（视版本可用） */
+const phoneE164 = s => { s = String(s || '').trim(); return /^\+/.test(s) ? s : ('+86 ' + s); };
+const loginStateUser = ls => (ls && (ls.user || (ls.loginState && ls.loginState.user))) || null;
 function loginHTML() {
   const m = AUTH.mode;
   return `
@@ -893,42 +904,40 @@ function authGuard() {
   if (!authEnabled()) { AUTH.on = false; AUTH.user = null; renderLogin(); return Promise.resolve(false); }
   AUTH.on = true; renderLogin();
   const app = authApp();
+  const auth = app.auth();
   const finish = u => {
     AUTH.user = u;
     AUTH.on = !u;
     renderLogin();
     return !!u;
   };
-  return app.auth.getLoginState()
-    .then(state => {
-      const u = state && (state.user || (state.data && state.data.user)) || null;
-      if (u) return finish(u);
-      // 兼容不同 sdk 返回结构：无用户则认为未登录
-      const cur = app.auth.currentUser;
-      return finish(cur || null);
-    })
-    .catch(() => finish(null));
+  // 优先 getCurrentUser（Web v2），回退 getLoginState（旧版）
+  const probe = auth.getCurrentUser
+    ? auth.getCurrentUser().then(u => u || null).catch(() => null)
+    : (auth.getLoginState ? auth.getLoginState() : Promise.resolve(null))
+        .then(s => (s && s.user) || null).catch(() => null);
+  return probe.then(u => finish(u || null));
 }
 function loginSend() {
   const acc = (document.querySelector('[data-lf="account"]') || {}).value;
-  if (!String(acc || '').trim()) { AUTH.err = CLOUD_DB.env ? '请填写账号' : '请填写账号'; renderLogin(); return; }
+  if (!String(acc || '').trim()) { AUTH.err = '请填写账号'; renderLogin(); return; }
   AUTH.info = { account: acc.trim(), sent: false };
   const app = authApp();
+  const auth = app.auth();
   const m = AUTH.mode;
   AUTH.sending = true; AUTH.err = ''; renderLogin();
   const p = m === 'pwd'
-    ? app.auth.signInWithPassword({ username: acc.trim(), password: (document.querySelector('[data-lf="password"]') || {}).value })
-    : app.auth.signInWithOtp(m === 'phone' ? { phone: acc.trim() } : { email: acc.trim() });
+    ? auth.signIn({ username: m === 'phone' ? phoneE164(acc.trim()) : acc.trim(), password: (document.querySelector('[data-lf="password"]') || {}).value })
+    : auth.getVerification(m === 'phone' ? { phone_number: phoneE164(acc.trim()) } : { email: acc.trim() });
   p.then(r => {
-    if (r && r.error) { AUTH.err = r.error.message || '发送失败'; return; }
     if (m === 'pwd') return doFinishLogin(r);
+    AUTH.info.verify = r;      // { verification_id, is_user }
     AUTH.info.sent = true;
-    AUTH.info.verify = r && r.data;
-  }).catch(e => { AUTH.err = (e && e.message) || '操作失败，请稍后重试'; })
+  }).catch(e => { AUTH.err = (e && (e.message || e.error_message)) || '发送失败，请稍后重试'; })
     .finally(() => { AUTH.sending = false; renderLogin(); });
 }
-function doFinishLogin(r) {
-  const u = r && (r.data ? (r.data.user || (r.data.session && r.data.session.user)) : r.user);
+function doFinishLogin(ls) {
+  const u = loginStateUser(ls);
   if (!u) { AUTH.err = '登录未完成，请重试'; renderLogin(); return; }
   AUTH.err = ''; AUTH.info = null;
   AUTH.user = u; AUTH.on = false;
@@ -938,12 +947,37 @@ function doFinishLogin(r) {
 function loginSubmit() {
   const code = (document.querySelector('[data-lf="code"]') || {}).value;
   if (!String(code || '').trim()) { AUTH.err = '请输入验证码'; renderLogin(); return; }
-  AUTH.sending = true; AUTH.err = ''; renderLogin();
   const info = AUTH.info || {};
-  Promise.resolve(info.verify && info.verify.verifyOtp ? info.verify.verifyOtp({ token: String(code).trim() })
-      : (authApp().auth.verifyOtp({ token: String(code).trim(), ...(AUTH.mode === 'phone' ? { phone: info.account } : { email: info.account }) })))
-    .then(r => { if (r && r.error) { AUTH.err = r.error.message || '验证码错误'; return; } doFinishLogin(r); })
-    .catch(e => { AUTH.err = (e && e.message) || '验证失败'; })
+  if (!info.verify || !info.verify.verification_id) { AUTH.err = '请先获取验证码'; renderLogin(); return; }
+  AUTH.sending = true; AUTH.err = ''; renderLogin();
+  const auth = authApp().auth();
+  const codeStr = String(code).trim();
+  const isPhone = AUTH.mode === 'phone';
+  const acc = info.account;
+  const check = auth.verify({
+    verification_id: info.verify.verification_id,
+    verification_code: codeStr
+  }).then(vt => {
+    // 已注册用户：验证码直接登录；新用户：验证码自动注册
+    const token = vt && vt.verification_token;
+    if (info.verify.is_user) {
+      return isPhone
+        ? auth.signInWithSms({ verificationInfo: info.verify, verificationCode: codeStr, phoneNum: phoneE164(acc) })
+        : auth.signInWithEmail({ verificationInfo: info.verify, verificationCode: codeStr, email: acc });
+    }
+    const randPwd = 'Cbi' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10) + '7x';
+    const autoName = isPhone ? ('u' + acc.replace(/\D/g, '').slice(-8)) : ('u' + acc.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16));
+    return auth.signUp({
+      ...(isPhone ? { phone_number: phoneE164(acc) } : { email: acc }),
+      verification_code: codeStr,
+      ...(token ? { verification_token: token } : {}),
+      username: autoName,
+      name: autoName,
+      password: randPwd
+    }).then(ls => ls || auth.signIn({ username: isPhone ? phoneE164(acc) : acc, password: randPwd }));
+  });
+  check.then(ls => doFinishLogin(ls))
+    .catch(e => { AUTH.err = (e && (e.message || e.error_message)) || '验证失败，请核对验证码'; })
     .finally(() => { AUTH.sending = false; renderLogin(); });
 }
 function afterLogin(u) {
@@ -3612,7 +3646,10 @@ function exportExcel(bounds, label) {
   // SDK 异步加载，稍等就绪后再判断登录态
   let tries = 0;
   const wait = () => {
-    if (window.cloudbase) { authGuard(); return; }
+    if (window.cloudbase) {
+      try { authGuard(); } catch (e) { console.warn('登录门禁初始化失败：', e && e.message); }
+      return;
+    }
     if (++tries > 60) return; // 3 秒仍无 SDK（离线）→ 不出登录层，按本地模式使用
     setTimeout(wait, 50);
   };
