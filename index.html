@@ -623,7 +623,8 @@ function restDevice() {
 }
 function restBase() { return `https://${CLOUD_DB.env}.api.tcloudbasegateway.com/v1`; }
 function restHeaders(token) {
-  const h = { 'Content-Type': 'application/json', 'x-tcb-call-source': 'web', 'x-device-id': restDevice() };
+  // 注意：不要发 x-tcb-call-source —— 网关 CORS 允许清单里没有它，浏览器预检会拦截（curl 测不出来）
+  const h = { 'Content-Type': 'application/json', 'x-device-id': restDevice() };
   const t = token || REST.token;
   if (t) h.Authorization = 'Bearer ' + t;
   return h;
@@ -647,7 +648,8 @@ function restToken() {
     REST.token = j.access_token; REST.tokenAt = Date.now();
     return REST.token;
   })).catch(e => {
-    REST.token = ''; restFailed = true; REST.failAt = Date.now();   // 短暂熔断，避免每次操作都等 8 秒超时
+    REST.token = ''; restFailed = true; REST.failAt = Date.now();
+    REST.lastErr = (e && (e.message || String(e))) || 'unknown';   // 供「我的」页诊断展示
     throw e;
   }).finally(() => clearTimeout(timer));
 }
@@ -1253,7 +1255,7 @@ function loginLabel() {
 function cloudFailReason() {
   if (!CLOUD_DB.env) return '未配置环境';
   if (!restNeed() && !window.cloudbase) return '网络 SDK/网关均不可用';
-  if (restFailed) return '云开发网关暂不可达';
+  if (restFailed) return '网关不可达' + (REST.lastErr ? '：' + REST.lastErr : '');
   if (CLOUD.err) return '云端推送失败';
   return '尚未连接，可点右侧重试';
 }
