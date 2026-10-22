@@ -605,6 +605,87 @@ const CLOUD_DB = {
   docId: 'main',
   app: null, db: null
 };
+/* 直连 CloudBase v3 数据库网关（绕过 ESM SDK 加载失败的问题）
+   - 三次尝试全部用 curl 实测通过：匿名登录、读文档、跨用户覆盖写
+   - 请求体/响应体为 EJSON，数字形如 {"$numberInt":"1"} */
+const REST = { token: '', tokenAt: 0, deviceId: '', sdk: null };
+function restNeed() { return !!(CLOUD_DB.env && CLOUD_DB.accessKey && typeof fetch === 'function'); }
+function restDevice() {
+  if (!REST.deviceId) {
+    REST.deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, () => {
+      const r = Math.random() * 16 | 0;
+      return (r & 0x3 | 0x8).toString(16);
+    });
+  }
+  return REST.deviceId;
+}
+function restBase() { return `https://${CLOUD_DB.env}.api.tcloudbasegateway.com/v1`; }
+function restHeaders(token) {
+  const h = { 'Content-Type': 'application/json', 'x-tcb-call-source': 'web', 'x-device-id': restDevice() };
+  const t = token || REST.token;
+  if (t) h.Authorization = 'Bearer ' + t;
+  return h;
+}
+/* 换匿名 token（1 小时内复用）；8 秒超时避免网关不可达时长挂 */
+let restFailed = false;
+function restToken() {
+  if (restFailed) return Promise.reject(new Error('rest unavailable'));
+  if (REST.token && Date.now() - REST.tokenAt < 50 * 60 * 1000) return Promise.resolve(REST.token);
+  if (!restNeed()) return Promise.reject(new Error('no env'));
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 8000);
+  return fetch(`https://${CLOUD_DB.env}.api.tcloudbasegateway.com/auth/v1/signin/anonymously`, {
+    method: 'POST',
+    headers: { ...restHeaders(CLOUD_DB.accessKey) },
+    body: '{}',
+    ...(ctl ? { signal: ctl.signal } : {})
+  }).then(r => r.json().then(j => {
+    if (!j || !j.access_token) throw new Error(j && (j.error_description || j.error || j.code) || '匿名登录失败');
+    REST.token = j.access_token; REST.tokenAt = Date.now();
+    return REST.token;
+  })).catch(e => {
+    REST.token = ''; restFailed = true;   // 网关不可达：本次会话不再重试，直接走同步服务/本地
+    throw e;
+  }).finally(() => clearTimeout(timer));
+}
+/* EJSON 宽松解析：{"$numberInt":"2"} → 2 */
+function ejsonNorm(v) {
+  if (Array.isArray(v)) return v.map(ejsonNorm);
+  if (v && typeof v === 'object') {
+    if (typeof v.$numberInt === 'string') return Number(v.$numberInt);
+    if (typeof v.$numberLong === 'string') return Number(v.$numberLong);
+    if (typeof v.$numberDouble === 'string') return Number(v.$numberDouble);
+    if (v.$date !== undefined) return typeof v.$date === 'string' ? v.$date : new Date(v.$date.$numberLong * 1).toISOString();
+    const o = {};
+    Object.keys(v).forEach(k => { if (k !== '_openid' && k !== '_id') o[k] = ejsonNorm(v[k]); });
+    return o;
+  }
+  return v;
+}
+function restDbUrl(suffix) {
+  return `${restBase()}/database/instances/(default)/databases/(default)/collections/${CLOUD_DB.collection}/documents${suffix || ''}`;
+}
+function restLoadDb() {
+  return restToken().then(tk => fetch(restDbUrl('/' + CLOUD_DB.docId), { headers: restHeaders(tk), cache: 'no-store' }))
+    .then(r => r.json().then(j => {
+      if (j && j.code === 'DOCUMENT_NOT_FOUND') return { rev: 0, data: null };
+      if (j && j.code) throw new Error(j.message || j.code);
+      const d = ejsonNorm(j);
+      // rev 必须是非负整数：旧版本 SDK 路径可能写入负数/非数字，统一按 0 处理以重建计数
+      let rev = typeof d.rev === 'number' && isFinite(d.rev) && d.rev >= 0 ? Math.floor(d.rev) : 0;
+      return { rev, data: d.data || null };
+    }));
+}
+function restSaveDb(rev, data) {
+  return restToken().then(tk => fetch(restDbUrl('/' + CLOUD_DB.docId), {
+    method: 'PATCH',
+    headers: restHeaders(tk),
+    body: JSON.stringify({ data: { rev, data, updatedAt: new Date().toISOString() }, upsert: true, replaceMode: true })
+  })).then(r => r.json().then(j => {
+    if (j && j.code) throw new Error(j.message || j.code);
+    return { rev, data };
+  }));
+}
 const CLOUD = { on: false, mode: '', rev: 0, pushing: false, pending: false, timer: null, err: false, user: null };
 function persist() {
   try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { console.warn('存储失败', e); }
@@ -632,7 +713,10 @@ function dbReady() {
   CLOUD_DB.db = CLOUD_DB.app.database();
   return Promise.resolve(CLOUD_DB.db);
 }
+/* 数据库通道：直连网关（REST）优先，SDK 方式仅当 REST 不可用时兜底 */
 function dbLoad() {
+  // REST：网关返回单文档对象；SDK：返回 { data: [...] }
+  if (restNeed()) return restLoadDb();
   return dbReady().then(db => db.collection(CLOUD_DB.collection).doc(CLOUD_DB.docId).get())
     .then(r => {
       const d = r && r.data && (r.data[0] || r.data);
@@ -641,6 +725,7 @@ function dbLoad() {
     });
 }
 function dbSave(rev, data) {
+  if (restNeed()) return restSaveDb(rev, data);
   return dbReady().then(db => db.collection(CLOUD_DB.collection).doc(CLOUD_DB.docId)
     .set({ rev, data, updatedAt: new Date().toISOString() }))
     .then(() => ({ rev, data }));
@@ -652,6 +737,8 @@ function cloudInit() {
 }
 function tryDbBackend() {
   if (!CLOUD_DB.env) return Promise.resolve(false);
+  // REST 直连不依赖 window.cloudbase，先判可用性
+  if (!restNeed() && !window.cloudbase) return Promise.resolve(false);
   return dbLoad().then(j => {
     CLOUD.on = true; CLOUD.mode = 'db'; CLOUD.rev = j.rev;
     if (!j.data || !Array.isArray(j.data.workshops) || !j.data.workshops.length) {
@@ -874,7 +961,7 @@ function seed() {
    - 未配置 env（本地 file:// 或内网体验）时不拦截，沿用角色切换
    ============================================================ */
 const AUTH = { app: null, on: false, user: null, mode: 'phone', sending: false, info: null, err: '' };
-function authEnabled() { return !!CLOUD_DB.env && !!window.cloudbase; }
+function authEnabled() { return !!CLOUD_DB.env && (!!window.cloudbase || restNeed()); }
 function authApp() {
   if (!AUTH.app && authEnabled()) AUTH.app = tcbApp();
   return AUTH.app;
@@ -883,6 +970,38 @@ function authObj() {
   const app = authApp();
   if (!app) return null;
   return typeof app.auth === 'function' ? app.auth() : app.auth;  // v3 为属性，旧版为函数
+}
+/* ---------- REST 登录通道（SDK 加载失败时的兜底） ----------
+   网关接口与 v3 SDK 一致：POST /auth/v1/signin、/auth/v1/signin/anonymously
+   会话存 localStorage，有效期约 1 小时（token 到期自动静默续期失败 → 回登录页） */
+const REST_AUTH_KEY = 'cri_v2_rest_token';
+function restAuthCall(path, body) {
+  return fetch(`https://${CLOUD_DB.env}.api.tcloudbasegateway.com/auth/v1/${path}`, {
+    method: 'POST', headers: restHeaders(CLOUD_DB.accessKey), body: JSON.stringify(body || {})
+  }).then(r => r.json().then(j => {
+    if (!j || !j.access_token) {
+      const err = new Error(j && (j.error_description || j.error || j.code) || '登录失败');
+      err.code = j && (j.error_code || j.code);
+      throw err;
+    }
+    REST.token = j.access_token; REST.tokenAt = Date.now();
+    try { localStorage.setItem(REST_AUTH_KEY, JSON.stringify({ token: j.access_token, at: REST.tokenAt, user: j.user || null })); } catch (e) { /* 忽略 */ }
+    return j;
+  }));
+}
+function restAuthRestore() {
+  try {
+    const o = JSON.parse(localStorage.getItem(REST_AUTH_KEY) || 'null');
+    if (o && o.token && Date.now() - o.at < 50 * 60 * 1000) {
+      REST.token = o.token; REST.tokenAt = o.at;
+      return o.user || { name: '已登录用户' };
+    }
+  } catch (e) { /* 忽略 */ }
+  return null;
+}
+function restAuthClear() {
+  REST.token = ''; REST.tokenAt = 0;
+  try { localStorage.removeItem(REST_AUTH_KEY); } catch (e) { /* 忽略 */ }
 }
 /* CloudBase Web v2 认证 API：
    发码 auth.getVerification({ phone_number | email }) → { verification_id, is_user }
@@ -931,7 +1050,8 @@ function loginHTML() {
       ${AUTH.err ? `<div class="login-err">${esc(AUTH.err)}</div>` : ''}
       <button class="login-btn" data-act="${AUTH.info && (AUTH.info.sent || m === 'pwd') ? 'loginSubmit' : 'loginSend'}" ${AUTH.sending ? 'disabled' : ''}>
         ${AUTH.sending ? '处理中…' : (m === 'pwd' ? '登录' : (AUTH.info && AUTH.info.sent ? '登录' : '获取验证码'))}</button>
-      <div class="login-foot">登录即代表同意内部数据使用规范<br>账号由腾讯云开发用户管理统一认证</div>
+      <div class="login-foot">登录即代表同意内部数据使用规范<br>
+        ${window.cloudbase ? '账号由腾讯云开发用户管理统一认证' : '账号密码登录（直连网关通道）'}</div>
     </div>
   </div>`;
 }
@@ -945,6 +1065,14 @@ function authGuard() {
   if (!authEnabled()) { AUTH.on = false; AUTH.user = null; renderLogin(); return Promise.resolve(false); }
   AUTH.on = true; renderLogin();
   const app = authApp();
+  // SDK 未就绪：走 REST 通道（会话本地存续）
+  if (!app) {
+    const u = restAuthRestore();
+    AUTH.user = u || null;
+    AUTH.on = !u;
+    renderLogin();
+    return Promise.resolve(!!u);
+  }
   const auth = typeof app.auth === 'function' ? app.auth() : app.auth;
   const finish = u => {
     AUTH.user = u;
@@ -976,6 +1104,25 @@ function loginSend() {
   const pwdUser = m === 'phone' ? phoneE164(acc.trim()) : acc.trim();
   const pwdVal = (document.querySelector('[data-lf="password"]') || {}).value;
   AUTH.sending = true; AUTH.err = ''; renderLogin();
+  // SDK 不可用 → REST 通道（仅支持账号密码；验证码通道依赖 SDK）
+  if (!auth) {
+    if (m !== 'pwd') {
+      AUTH.sending = false;
+      AUTH.err = '验证码登录需要加载云开发 SDK，请稍后重试或改用账号密码登录';
+      renderLogin();
+      return;
+    }
+    restAuthCall('signin', { username: pwdUser, password: pwdVal }).then(j => {
+      const u = j.user || { username: pwdUser, name: pwdUser };
+      AUTH.sending = false;
+      doFinishLogin({ user: u });
+    }).catch(e => {
+      AUTH.sending = false;
+      AUTH.err = fmtAuthErr(e, '登录失败，请核对账号密码');
+      renderLogin();
+    });
+    return;
+  }
   const p = m === 'pwd'
     ? (auth.signInWithPassword
         ? auth.signInWithPassword({ username: pwdUser, password: pwdVal })            // v3 新版身份认证
@@ -1092,6 +1239,7 @@ function doLogout() {
     CLOUD.user = null;
     S.role = DEFAULT_ROLE;
     if (AUTH.on !== undefined) AUTH.on = true;
+    restAuthClear();
     renderLogin(); render();
     toast('已退出登录');
   };
@@ -2089,17 +2237,19 @@ function accountCardHTML() {
   <div class="sec-title"><h3>账号与角色分配</h3><span>${accs.length} 个账号</span></div>
   <div class="card" style="padding:0 14px">
     ${accs.map((u, i, arr) => `
-      <div class="row" style="justify-content:space-between;padding:11px 0;${i < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer"
-        data-act="editAccount" data-emp="${u.emp}">
-        <div style="flex:1">
+      <div class="row" style="justify-content:space-between;padding:11px 0;${i < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''}">
+        <div style="flex:1;cursor:pointer" data-act="editAccount" data-emp="${u.emp}">
           <div style="font-size:12.5px;font-weight:650">${esc(u.name)}
             <span class="tiny" style="margin-left:6px;font-weight:400">${esc(u.emp)}</span>
             ${u.emp === me().emp ? '<span class="tag pri" style="font-size:9px;margin-left:4px">我</span>' : ''}
           </div>
           <div class="tiny" style="margin-top:2px">${esc(u.dept)}${u.shops && u.shops.length ? ' · 分管 ' + u.shops.map(id => (wsOf(id) || {}).name).filter(Boolean).join('、') : ''}</div>
         </div>
-        <span class="tag ${u.role === 'compliance' ? 'info' : u.role === 'production' ? 'warn' : 'ok'}" style="font-size:10px">
-          ${ROLES[u.role].name}</span>
+        <span class="row" style="gap:6px">
+          <span class="tag ${u.role === 'compliance' ? 'info' : u.role === 'production' ? 'warn' : 'ok'}" style="font-size:10px">
+            ${ROLES[u.role].name}</span>
+          <span data-act="delAccount" data-emp="${u.emp}" style="font-size:11px;font-weight:600;color:var(--red);cursor:pointer;padding:2px 4px">删除</span>
+        </span>
       </div>`).join('')}
     <div class="row" style="padding:10px 0 12px">
       <button class="btn btn-line btn-sm" style="flex:1" data-act="addAccount">+ 新增账号</button>
@@ -2199,7 +2349,7 @@ function renderConfig() {
             ${Object.keys(ROLES).map(r => `<option value="${r}" ${r === rk ? 'selected' : ''}>${ROLES[r].name}</option>`).join('')}
           </select>
           <button class="btn btn-line btn-sm" style="padding:4px 8px;font-size:10.5px;color:var(--red)"
-            data-act="bindDel" data-id="${esc(k)}">删</button>
+            data-act="bindDelAsk" data-id="${esc(k)}">删除</button>
         </div>
       </div>`;
     }).join('') : '<div class="tiny" style="padding:10px 0">暂无绑定：所有登录账号均为只读预览</div>'}
@@ -2820,6 +2970,27 @@ function renderSheet() {
       '<button class="btn btn-line" style="flex:1" data-act="sheetClose">关闭</button>');
   }
 
+  else if (s.type === 'delAccount') {
+    html = sheetWrap('删除账号', '删除后可重新新增，历史记录中的署名不受影响',
+      `<div class="card" style="padding:14px;line-height:1.8">
+        <div style="font-size:13.5px;font-weight:700">${esc(s.draft.name)} <span class="tiny" style="font-weight:400">${esc(s.draft.emp)}</span></div>
+        <div class="tiny" style="margin-top:4px">${esc(s.draft.dept)} · 当前角色 ${ROLES[s.draft.role] ? ROLES[s.draft.role].name : '—'}</div>
+        <div class="tiny" style="margin-top:10px;color:var(--red)">删除后该账号将从「账号与角色分配」中移除，不再可用此账号分配任务或确认发现项。</div>
+      </div>`,
+      `<button class="btn btn-line" style="flex:1" data-act="sheetClose">取消</button>
+       <button class="btn" style="flex:1;margin-left:8px;background:var(--red);color:#fff" data-act="delAccountConfirm" data-emp="${esc(s.draft.emp)}">确认删除</button>`);
+  }
+
+  else if (s.type === 'delBind') {
+    html = sheetWrap('解除权限绑定', '解除后该账号下次登录为只读预览',
+      `<div class="card" style="padding:14px;line-height:1.8">
+        <div style="font-size:13.5px;font-weight:700;word-break:break-all">${esc(s.draft.login)}</div>
+        <div class="tiny" style="margin-top:4px">当前绑定角色　${ROLES[s.draft.role] ? ROLES[s.draft.role].name : '—'}</div>
+      </div>`,
+      `<button class="btn btn-line" style="flex:1" data-act="sheetClose">取消</button>
+       <button class="btn" style="flex:1;margin-left:8px;background:var(--red);color:#fff" data-act="bindDel" data-id="${esc(s.draft.login)}">确认解除</button>`);
+  }
+
   else if (s.type === 'entity') {
     const owners = (D().accounts || []).filter(a => a.role === 'production').map(a => a.name);
     html = sheetWrap(s.mode === 'add' ? '新增' + s.label : '编辑' + s.label, '',
@@ -3252,6 +3423,30 @@ function handleAction(act, t, d) {
       if (!can('manageRole')) { toast('当前角色无权新增账号'); break; }
       openSheet({ type: 'account', mode: 'add', draft: { name: '', emp: '', dept: '', role: DEFAULT_ROLE, shops: [] } });
       break;
+    case 'delAccount': {
+      if (!can('manageRole')) { toast('当前角色无权删除账号'); break; }
+      const u = (D().accounts || []).find(x => x.emp === t.dataset.emp);
+      if (!u) break;
+      if (u.emp === me().emp) { toast('不能删除当前登录账号'); break; }
+      const compl = (D().accounts || []).filter(x => x.role === 'compliance');
+      if (u.role === 'compliance' && compl.length <= 1) { toast('至少保留一个合规管理账号'); break; }
+      S.sheet = { type: 'delAccount', draft: { emp: u.emp, name: u.name, dept: u.dept, role: u.role } };
+      renderSheet();
+      break;
+    }
+    case 'delAccountConfirm': {
+      if (!can('manageRole')) { toast('当前角色无权删除账号'); break; }
+      const emp = t.dataset.emp;
+      const u = (D().accounts || []).find(x => x.emp === emp);
+      if (!u) { closeSheet(); break; }
+      D().accounts = D().accounts.filter(x => x.emp !== emp);
+      // 同步清理该账号的登录绑定（按姓名匹配的可读提示，实际绑定键为登录名）
+      D().roleLog.push({ at: `${todayStr()} ${timeStr(new Date())}`, by: me().name, who: u.name,
+        note: `删除账号 ${emp}（原角色 ${ROLES[u.role].name}）` });
+      persist(); closeSheet(); render();
+      toast('已删除账号：' + u.name);
+      break;
+    }
     case 'pickShop':
       if (d) {
         d.shops = d.shops || [];
@@ -3312,14 +3507,23 @@ function handleAction(act, t, d) {
       toast('已绑定：' + login + ' → ' + ROLES[D().roleBindings[login]].name);
       break;
     }
-    case 'bindDel': {
+    case 'bindDelAsk': {
       if (S.role !== 'compliance') { toast('仅合规管理可调整权限绑定'); break; }
       const k = t.dataset.id;
       if (!k || !D().roleBindings || !D().roleBindings[k]) break;
+      S.sheet = { type: 'delBind', draft: { login: k, role: D().roleBindings[k] } };
+      renderSheet();
+      break;
+    }
+    case 'bindDel': {
+      if (S.role !== 'compliance') { toast('仅合规管理可调整权限绑定'); break; }
+      const k = (t.dataset.id) || (S.sheet && S.sheet.draft && S.sheet.draft.login);
+      if (!k || !D().roleBindings || !D().roleBindings[k]) { closeSheet(); break; }
+      const before = D().roleBindings[k];
       delete D().roleBindings[k];
       D().roleLog.push({ at: `${todayStr()} ${timeStr(new Date())}`, by: me().name, who: k, note: '解除登录账号权限绑定' });
-      persist(); render();
-      toast('已解除绑定（该账号下次登录为只读预览）');
+      persist(); closeSheet(); render();
+      toast('已解除绑定：' + k + '（原 ' + (ROLES[before] ? ROLES[before].name : '—') + '，下次登录为只读预览）');
       break;
     }
     case 'toggleWs':
@@ -3843,7 +4047,8 @@ window.__t = {
   doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll,
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSend, loginSubmit, doFinishLogin,
   dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData,
-  applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel
+  applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel,
+  restNeed, restToken, restLoadDb, restSaveDb, restAuthCall, restAuthRestore, restAuthClear, REST
 };
 </script>
 </body>
