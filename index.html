@@ -592,15 +592,23 @@ function persist() {
 }
 
 /* ---------- 文档型数据库适配层 ---------- */
+/* CloudBase 单实例：登录与数据库共用一个 app 对象（SDK 限制每个环境只能有一个 auth 实例） */
+function tcbApp() {
+  if (!CLOUD_DB.env || !window.cloudbase) return null;
+  if (!CLOUD_DB.app) {
+    CLOUD_DB.app = window.cloudbase.init({
+      env: CLOUD_DB.env, region: CLOUD_DB.region,
+      ...(CLOUD_DB.clientId ? { clientId: CLOUD_DB.clientId } : {}),
+      ...(CLOUD_DB.accessKey ? { accessKey: CLOUD_DB.accessKey } : {})
+    });
+  }
+  return CLOUD_DB.app;
+}
 function dbReady() {
   if (CLOUD_DB.db) return Promise.resolve(CLOUD_DB.db);
   if (!CLOUD_DB.env) return Promise.reject(new Error('no env'));
   if (!window.cloudbase) return Promise.reject(new Error('sdk missing'));
-  CLOUD_DB.app = (typeof AUTH !== 'undefined' && AUTH.app) || window.cloudbase.init({
-    env: CLOUD_DB.env, region: CLOUD_DB.region,
-    ...(CLOUD_DB.clientId ? { clientId: CLOUD_DB.clientId } : {}),
-    ...(CLOUD_DB.accessKey ? { accessKey: CLOUD_DB.accessKey } : {})
-  });
+  CLOUD_DB.app = tcbApp();
   CLOUD_DB.db = CLOUD_DB.app.database();
   return Promise.resolve(CLOUD_DB.db);
 }
@@ -846,13 +854,7 @@ function seed() {
 const AUTH = { app: null, on: false, user: null, mode: 'phone', sending: false, info: null, err: '' };
 function authEnabled() { return !!CLOUD_DB.env && !!window.cloudbase; }
 function authApp() {
-  if (!AUTH.app && authEnabled()) {
-    AUTH.app = CLOUD_DB.app || window.cloudbase.init({
-      env: CLOUD_DB.env, region: CLOUD_DB.region,
-      ...(CLOUD_DB.clientId ? { clientId: CLOUD_DB.clientId } : {}),
-      ...(CLOUD_DB.accessKey ? { accessKey: CLOUD_DB.accessKey } : {})
-    });
-  }
+  if (!AUTH.app && authEnabled()) AUTH.app = tcbApp();
   return AUTH.app;
 }
 /* CloudBase Web v2 认证 API：
