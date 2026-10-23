@@ -454,6 +454,11 @@ const DEFAULT_ACCOUNTS = [
   { emp: 'DD-20345', name: '刘洋', login: 'liuyang', role: 'production', shops: ['W1', 'W2'], loginAt: '2026-10-08 08:31' }
 ];
 const INSPECTORS = ['张伟', '李静', '周敏'];
+/* 实时巡检人名单：优先取账号表中角色为「巡检人」的账号（含改名/新增），无则退回演示名单 */
+function inspectorNames() {
+  const list = (D().accounts || []).filter(a => a.role === 'inspector').map(a => a.name);
+  return list.length ? list : INSPECTORS.slice();
+}
 /* 出厂角色形象备份：退出登录时还原，避免云端账号名残留 */
 const STAFF0 = JSON.parse(JSON.stringify(STAFF));
 
@@ -2948,7 +2953,7 @@ function renderSheet() {
       <div class="fld">
         <label>巡检人${S.role === 'inspector' ? '（可指派给自己或组内同事）' : ''}</label>
         <select data-f="assignee">
-          ${INSPECTORS.map(n => `<option value="${n}" ${s.draft.assignee === n ? 'selected' : ''}>${n}${n === me().name ? '（我）' : ''}</option>`).join('')}
+          ${inspectorNames().map(n => `<option value="${n}" ${s.draft.assignee === n ? 'selected' : ''}>${n}${n === me().name ? '（我）' : ''}</option>`).join('')}
         </select>
       </div>
       <div class="fld">
@@ -3436,7 +3441,7 @@ function handleAction(act, t, d) {
         type: 'assign', taskId: null,
         draft: {
           workshopId: (free || D().workshops[0]).id,
-          assignee: S.role === 'inspector' ? me().name : INSPECTORS[0],
+          assignee: S.role === 'inspector' ? me().name : inspectorNames()[0],
           due: addDays(10)
         }
       });
