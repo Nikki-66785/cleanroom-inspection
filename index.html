@@ -2785,7 +2785,7 @@ function renderMe() {
       { act: 'dataProtect', n: '数据保护', d: '历史版本回滚 · 一键快照 · 备份导出导入', show: can('exportAll') },
       { act: 'goAudit', n: '审计追踪', d: '角色变更、房间回复人调整、数据删除留痕', show: can('viewAudit') },
       { act: 'roleSheet', n: '切换角色', d: '巡检人 / 合规管理 / 整改回复人 / 预览', show: true },
-      { act: 'chgPwd', n: '修改密码', d: '验证码二次确认后修改 CloudBase 登录密码', show: authEnabled() && !!CLOUD.user },
+      { act: 'chgPwd', n: '修改密码', d: '旧密码校验后修改 CloudBase 登录密码', show: authEnabled() && !!CLOUD.user },
       { act: 'logout', n: '退出登录', d: authEnabled() && CLOUD.user ? `当前账号 ${loginLabel()}` : '未启用云端登录', show: authEnabled() && !!CLOUD.user }
     ].filter(i => i.show).map((i, ix, arr) => `
       <div class="row" style="justify-content:space-between;padding:13px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer" data-act="${i.act}">
@@ -3557,31 +3557,12 @@ function renderSheet() {
   }
 
   else if (s.type === 'chgPwd') {
-    const d = s.draft, u = CLOUD.user || {};
-    const hasPhone = !!u.phone, hasEmail = !!u.email;
-    const cd = s._cdAt ? Math.max(0, 60 - Math.floor((Date.now() - s._cdAt) / 1000)) : 0;
-    const noBind = !hasPhone && !hasEmail;
+    const d = s.draft;
     html = sheetWrap('修改密码', '登录账号 ' + esc(loginLabel()),
-      noBind
-        ? `<div class="tiny" style="line-height:1.9;color:var(--red)">当前账号未绑定手机号或邮箱，无法接收验证码，不能自助修改密码。<br>请联系管理员在云开发控制台「身份认证 → 用户管理」中重置密码，或先为账号绑定手机 / 邮箱。</div>`
-        : `
+      `
       <div class="fld">
-        <label>验证码接收方式</label>
-        <div class="row" style="gap:6px">
-          ${hasPhone ? `<span class="tag ${d.opt === 'phone' ? 'pri' : 'gray'}" style="cursor:pointer;padding:6px 12px" data-act="pwdOpt" data-k="phone">手机 ${esc(maskPhone(u.phone))}</span>` : ''}
-          ${hasEmail ? `<span class="tag ${d.opt === 'email' ? 'pri' : 'gray'}" style="cursor:pointer;padding:6px 12px" data-act="pwdOpt" data-k="email">邮箱 ${esc(maskEmail(u.email))}</span>` : ''}
-        </div>
-      </div>
-      <div class="fld">
-        <label>验证码</label>
-        <div class="row" style="gap:8px">
-          <input type="text" data-f="code" value="${esc(d.code || '')}" placeholder="5 分钟内有效" maxlength="8" inputmode="numeric" style="flex:1">
-          <button class="btn btn-line btn-sm" style="flex:0 0 118px" data-act="pwdSendCode" ${cd || s._sending ? 'disabled' : ''}>${s._sending ? '发送中…' : cd ? cd + 's 后重发' : '发送验证码'}</button>
-        </div>
-      </div>
-      <div class="fld">
-        <label>旧密码（账号已设密码时必填）</label>
-        <input type="password" data-f="old" value="" placeholder="首次设置密码可留空" autocomplete="new-password">
+        <label>旧密码（当前登录密码）</label>
+        <input type="password" data-f="old" value="" placeholder="请输入当前使用的密码" autocomplete="current-password">
       </div>
       <div class="fld">
         <label>新密码</label>
@@ -3594,10 +3575,9 @@ function renderSheet() {
       ${s._err ? `<div class="tiny" style="color:var(--red);line-height:1.7">${esc(s._err)}</div>` : ''}
       ${s._msg ? `<div class="tiny" style="color:#0B6A61;line-height:1.7;margin-top:6px">${esc(s._msg)}</div>` : ''}
       <div class="tiny" style="margin-top:8px;line-height:1.7;color:var(--ink3)">
-        修改成功后其他设备的登录会全部失效，需用新密码重新登录。
+        通过旧密码校验身份，无需验证码。修改成功后其他设备的登录会全部失效，需用新密码重新登录。
       </div>`,
-      noBind ? `<button class="btn btn-line" style="flex:1" data-act="sheetClose">知道了</button>`
-        : `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
+      `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
        <button class="btn btn-pri" data-act="pwdSubmit" ${s._saving ? 'disabled' : ''}>${s._saving ? '提交中…' : '确认修改'}</button>`);
   }
 
@@ -3680,7 +3660,7 @@ function renderSheet() {
           '防误删：房间 / 账号 / 任务 / 发现项数量比上一版明显减少时，系统会先弹确认再提交',
           '发现项详情页内置「AI 分析建议」：按产线场景自动生成风险判定、可能原因与整改建议，法规依据可切换中国 GMP / FDA / EU',
           '「分析」页可切换「按产线 / 按部门」两个维度：部门分析按整改责任人所属部门（CMU / CMD / CMF）归纳发现项',
-          '账号管理：新增 / 编辑账号时可选部门（CMU / CMD / CMF）；登录后可在「我的 → 修改密码」自助改密（需手机或邮箱验证码）'
+          '账号管理：新增 / 编辑账号时可选部门（CMU / CMD / CMF）；登录后可在「我的 → 修改密码」用旧密码自助改密，无需验证码'
         ])}
       </div>`,
       '<button class="btn btn-pri" style="flex:1" data-act="sheetClose">我知道了</button>');
@@ -4144,58 +4124,39 @@ function handleAction(act, t, d) {
 
     case 'chgPwd': {
       if (!(authEnabled() && CLOUD.user)) { toast('请先登录云端账号'); break; }
-      const cu = CLOUD.user;
-      if (!cu.phone && !cu.email) { toast('账号未绑定手机/邮箱，无法自助修改密码'); break; }
-      openSheet({ type: 'chgPwd', draft: { opt: cu.phone ? 'phone' : 'email', code: '' } });
-      break;
-    }
-    case 'pwdOpt': {
-      const s = S.sheet;
-      if (!s || s.type !== 'chgPwd') break;
-      s.draft.opt = t.dataset.k === 'email' ? 'email' : 'phone';
-      renderSheet();
-      break;
-    }
-    case 'pwdSendCode': {
-      const s = S.sheet;
-      if (!s || s.type !== 'chgPwd' || s._sending) break;
-      if (s._cdAt && Date.now() - s._cdAt < 60 * 1000) break;
-      const opt = s.draft.opt === 'email' ? 'email_code' : 'phone_code';
-      s._err = ''; s._msg = ''; s._sending = true; renderSheet();
-      restAuthApi('POST', 'user/reauthenticate', { verify_opt: opt }).then(() => {
-        s._sending = false; s._cdAt = Date.now();
-        s._msg = '验证码已发送，请查收（5 分钟内有效）';
-        renderSheet();
-      }).catch(e => {
-        s._sending = false; s._err = fmtAuthErr(e, '验证码发送失败：请确认账号已绑定手机/邮箱且短信/邮件服务已开通');
-        renderSheet();
-      });
+      openSheet({ type: 'chgPwd', draft: {} });
       break;
     }
     case 'pwdSubmit': {
       const s = S.sheet;
       if (!s || s.type !== 'chgPwd' || s._saving) break;
       const gv = f => { const el = document.querySelector('#sheet [data-f="' + f + '"]'); return el ? el.value : ''; };
-      const old = String(gv('old') || '').trim();
+      const old = String(gv('old') || '');
       const p1 = String(gv('p1') || '');
       const p2 = String(gv('p2') || '');
-      const code = String(gv('code') || '').trim();
-      if (!code) { s._err = '请输入验证码'; renderSheet(); break; }
+      if (!old) { s._err = '请输入旧密码（当前登录密码）'; renderSheet(); break; }
       if (p1 !== p2) { s._err = '两次输入的新密码不一致'; renderSheet(); break; }
+      if (p1 === old) { s._err = '新密码不能与旧密码相同'; renderSheet(); break; }
       if (!(p1.length >= 8 && p1.length <= 64 && /[a-z]/.test(p1) && /[A-Z]/.test(p1) && /\d/.test(p1) && /[^A-Za-z0-9]/.test(p1))) {
         s._err = '密码强度不足：需 8–64 位，包含大写字母、小写字母、数字和特殊字符';
         renderSheet(); break;
       }
       s._err = ''; s._msg = ''; s._saving = true; renderSheet();
-      const body = { new_password: p1, confirm_password: p1, verify_code: code };
-      if (old) body.old_password = old;
+      const body = { old_password: old, new_password: p1, confirm_password: p1 };
       restAuthApi('PATCH', 'user/password', body).then(() => {
         closeSheet();
         toast('密码已修改，请用新密码重新登录');
         setTimeout(() => doLogout(), 900);
       }).catch(e => {
         s._saving = false;
-        s._err = fmtAuthErr(e, '修改失败：请核对验证码与密码要求');
+        const msg = String((e && e.message) || '');
+        if (/verify|验证码|verification/i.test(msg) || (e && (e.code === 4001))) {
+          s._err = '云端要求验证码二次验证（短信/邮箱通道未配置导致无法接收）。请在云开发控制台「身份认证 → 用户管理」中重置密码，或先配置短信/邮件服务。';
+        } else if (/old.?password|invalid_password|4003/i.test(msg)) {
+          s._err = '旧密码不正确，请重新输入';
+        } else {
+          s._err = fmtAuthErr(e, '修改失败：请核对旧密码与密码要求');
+        }
         renderSheet();
       });
       break;
