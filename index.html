@@ -440,6 +440,10 @@ function migrateAccounts(data) {
     if (!ROLES[rb[k]]) { delete rb[k]; return; }
     if (normLogin(k) !== k) { rb[normLogin(k)] = rb[k]; delete rb[k]; }
   });
+  // 房间整改回复人多选迁移（幂等）：replyOwner(单选字符串) → replyOwners(数组)，replyOwner 保留为展示串
+  (data.workshops || []).forEach(w => (w.rooms || []).forEach(r => {
+    if (!Array.isArray(r.replyOwners)) r.replyOwners = r.replyOwner ? [r.replyOwner] : [];
+  }));
   return data;
 }
 
@@ -478,9 +482,9 @@ const CAN = {
   inspect:      { name: '执行巡检 / 登记发现项', roles: ['inspector', 'compliance'],
                   scope: (t) => t.assignee === me().name,
                   on: (t) => ['pending', 'doing'].indexOf(taskStatus(t)) >= 0 },
-  fixFinding:   { name: '修改被退回的发现项', roles: ['inspector', 'compliance'],
-                  scope: (f) => f.foundBy === me().name,
-                  on: (f) => f.status === 'returned' },
+  fixFinding:   { name: '修改发现项内容（巡检人 / 合规管理均可，含他人登记）', roles: ['inspector', 'compliance'],
+                  scope: () => true,
+                  on: (f) => ['returned', 'pending'].indexOf(f.status) >= 0 },
   confirmFind:  { name: '确认 / 退回发现项', roles: ['compliance'],
                   scope: () => true,
                   on: (f) => f.status === 'pending' },
@@ -2164,6 +2168,7 @@ function renderFDetail() {
     <div class="kv"><span>车间</span><span>${esc(w.name)}</span></div>
     <div class="kv"><span>房间</span><span>${r.code} ${esc(r.name)}</span></div>
     <div class="kv"><span>发现人 / 时间</span><span>${esc(f.foundBy)} · ${f.foundAt}</span></div>
+    ${f.editedBy && f.editedBy !== f.foundBy ? `<div class="kv"><span>最近修改</span><span>${esc(f.editedBy)}</span></div>` : ''}
     <div class="kv"><span>所属任务</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${f.taskId}</span></div>
   </div>
 
@@ -3102,7 +3107,7 @@ function renderSheet() {
         <div class="tiny" style="margin-top:7px;line-height:1.7">${esc(f.desc)}</div>
         ${(() => {
           const r0 = roomOf(f.workshopId, f.roomId);
-          const ro = r0 && r0.replyOwner ? r0.replyOwner : '';
+          const ro = r0 ? (((r0.replyOwners || []).length ? r0.replyOwners.join('、') : (r0.replyOwner || ''))) : '';
           return ro ? `<div class="tiny" style="margin-top:8px;color:var(--pri);font-weight:650">
             确认后将自动分配给整改回复人：${esc(ro)}</div>` : '';
         })()}
@@ -3369,13 +3374,18 @@ function renderSheet() {
       </div>
       ${s.label === '房间' ? `
       <div class="fld">
-        <label>整改回复人（长期生效，无需每次填写）</label>
-        <select data-f="replyOwner">
-          <option value="" ${!s.draft.replyOwner ? 'selected' : ''}>未指定</option>
-          ${owners.map(n => `<option value="${esc(n)}" ${s.draft.replyOwner === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}
-        </select>
+        <label>整改回复人（可多选，长期生效，无需每次填写）</label>
+        ${owners.length ? owners.map(n => {
+          const on = (s.draft.replyOwners || []).indexOf(n) >= 0;
+          return `<div data-act="pickRowner" data-n="${esc(n)}" style="display:flex;align-items:center;gap:9px;
+            padding:8px 10px;border-radius:8px;cursor:pointer;${on ? 'background:#F2F9F7' : ''}">
+            <i style="width:17px;height:17px;border-radius:5px;flex:0 0 17px;display:flex;align-items:center;justify-content:center;
+              border:1.5px solid ${on ? '#0F8378' : '#C6D2D8'};background:${on ? '#0F8378' : '#fff'};color:#fff;font-size:11px;font-style:normal">${on ? '✓' : ''}</i>
+            <span style="flex:1;font-size:12.5px;font-weight:${on ? '650' : '500'};color:var(--ink)">${esc(n)}</span>
+          </div>`;
+        }).join('') : '<div class="tiny" style="padding:6px 2px">暂无「整改回复人」角色账号，请先在「账号与角色分配」中添加</div>'}
         <div class="tiny" style="margin-top:6px;line-height:1.7">
-          该房间产生的问题经合规确认后，将自动分配给所选回复人；如需更换在此修改即可。
+          该房间产生的问题经合规确认后，将自动分配给以上全部回复人；如需更换在此修改即可。
         </div>
       </div>` : ''}
       ${s.mode === 'add' && s.label === '房间' ? `<div class="tiny" style="margin-top:8px">将添加到「${esc(wsOf(s.wsId).name)}」，最多 12 个房间</div>` : ''}`,
@@ -3403,7 +3413,7 @@ function saveFinding() {
   const t = taskOf(s.taskId);
   if (s.type === 'editFind') {
     const f = findOf(s.findId);
-    if (!can('fixFinding', f)) { toast('仅可修改本人被退回的发现项'); return; }
+    if (!can('fixFinding', f)) { toast('该发现项当前状态不可修改（仅限待确认 / 被退回）'); return; }
     f.title = d.title.trim();
     f.desc = d.desc.trim();
     f.level = d.level;
@@ -3412,7 +3422,8 @@ function saveFinding() {
     f.status = 'pending';
     f.foundAt = `${todayStr()} ${timeStr(new Date())}`;
     f.returnNote = '';
-    toast('已重新提交，等待合规确认');
+    f.editedBy = me().name;
+    toast(`已由 ${me().name} 修改并重新提交，等待合规确认`);
   } else {
     if (!can('inspect', t)) { toast('当前角色无权在该车间登记发现项'); return; }
     const id = 'F-' + Date.now().toString(36).toUpperCase().slice(-6);
@@ -3456,12 +3467,15 @@ function submitTask(taskId) {
   toast(fs.length ? `已提交，${fs.length} 项发现项待合规确认` : '巡检完成，未发现问题');
 }
 
-/* 按房间主数据自动指派整改回复人（合规确认时调用） */
+/* 按房间主数据自动指派整改回复人，可多选（合规确认时调用） */
 function autoAssignOwner(f) {
   const r = roomOf(f.workshopId, f.roomId);
-  const ro = r && r.replyOwner ? r.replyOwner : '';
-  if (ro) f.autoOwner = ro;
-  return ro || '';
+  const list = r ? ((Array.isArray(r.replyOwners) && r.replyOwners.length ? r.replyOwners : (r.replyOwner ? [r.replyOwner] : []))) : [];
+  if (list.length) {
+    f.autoOwners = list.slice();
+    f.autoOwner = list.join('、');
+  }
+  return f.autoOwner || '';
 }
 
 function doConfirm(findId, level, note) {
@@ -3663,6 +3677,16 @@ function handleAction(act, t, d) {
       const ix = names.indexOf(n);
       if (ix >= 0) names.splice(ix, 1); else names.push(n);
       d.owner = names.join('、');
+      renderSheet();
+      break;
+    }
+    case 'pickRowner': {
+      if (!d) break;
+      const n = t.dataset.n;
+      const arr = (d.replyOwners || []).slice();
+      const ix = arr.indexOf(n);
+      if (ix >= 0) arr.splice(ix, 1); else arr.push(n);
+      d.replyOwners = arr;
       renderSheet();
       break;
     }
@@ -3934,13 +3958,13 @@ function handleAction(act, t, d) {
       const w = wsOf(t.dataset.ws);
       const r = w.rooms.find(x => x.id === t.dataset.room);
       openSheet({ type: 'entity', label: '房间', mode: 'edit', wsId: w.id,
-        draft: { name: r.name, code: r.code, replyOwner: r.replyOwner || '' }, _ref: r });
+        draft: { name: r.name, code: r.code, replyOwners: (r.replyOwners || (r.replyOwner ? [r.replyOwner] : [])).slice() }, _ref: r });
       break;
     }
     case 'addRoom': {
       const w = wsOf(t.dataset.ws);
       openSheet({ type: 'entity', label: '房间', mode: 'add', wsId: w.id,
-        draft: { name: '', code: w.code + '-' + pad(w.rooms.length + 101), replyOwner: '' } });
+        draft: { name: '', code: w.code + '-' + pad(w.rooms.length + 101), replyOwners: [] } });
       break;
     }
     case 'delRoom': {
@@ -3958,9 +3982,10 @@ function handleAction(act, t, d) {
       if (s.mode === 'edit') {
         s._ref.name = dd.name.trim();
         s._ref.code = dd.code.trim();
-        if (s.label === '房间' && dd.replyOwner !== undefined) {
-          const before = s._ref.replyOwner || '';
-          s._ref.replyOwner = dd.replyOwner || '';
+        if (s.label === '房间' && dd.replyOwners !== undefined) {
+          const before = (s._ref.replyOwners || []).join('、');
+          s._ref.replyOwners = (dd.replyOwners || []).slice();
+          s._ref.replyOwner = s._ref.replyOwners.join('、');
           if (before !== s._ref.replyOwner) {
             (D().roleLog = D().roleLog || []).push({
               at: `${todayStr()} ${timeStr(new Date())}`, by: me().name, who: s._ref.code + ' ' + s._ref.name,
@@ -3975,7 +4000,7 @@ function handleAction(act, t, d) {
       } else {
         const w = wsOf(s.wsId);
         if (w.rooms.length >= 12) { toast('单个车间最多 12 个房间'); break; }
-        w.rooms.push({ id: uid('R'), code: dd.code.trim(), name: dd.name.trim(), replyOwner: dd.replyOwner || '' });
+        w.rooms.push({ id: uid('R'), code: dd.code.trim(), name: dd.name.trim(), replyOwners: (dd.replyOwners || []).slice(), replyOwner: (dd.replyOwners || []).join('、') });
       }
       persist(); closeSheet(); render();
       toast('已保存');
@@ -4431,7 +4456,7 @@ window.__t = {
   voiceStart, voiceStop, voiceSupported, lineList, scopeWs, myReminders,
   rangeBounds, rangeData, rangeLabel, deleteImpact, doDeleteRange, exportExcel, RANGES,
   doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll,
-  aiAnalyze, lineProfile, GMP_RULES, aiLineReport, renderAi,
+  aiAnalyze, lineProfile, GMP_RULES, aiLineReport, renderAi, autoAssignOwner,
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSend, loginSubmit, doFinishLogin,
   dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData,
   applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel,
