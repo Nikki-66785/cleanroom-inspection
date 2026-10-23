@@ -1027,6 +1027,9 @@ const fmtAuthErr = (e, fallback) => {
   if (!e) return fallback;
   const code = e.code || e.error_code || e.status || '';
   const msg = e.message || e.error_message || e.msg || '';
+  // WebKit 网络中断的原始报错对用户无意义，翻译成可执行的提示
+  if (/unreachable|networkerror|failed to fetch|load failed/i.test(msg))
+    return '网络不可达：请检查手机网络后重试（若反复失败，请切换 Wi-Fi / 蜂窝网络）';
   return (msg || fallback) + (code ? `（${code}）` : '');
 };
 const loginStateUser = ls => {
@@ -1299,6 +1302,7 @@ function boot() {
   cloudInit().then(on => { if (on) render(); });
   // 登录提醒：按登录账号计算待办，原型内 toast 提示（正式环境经钉钉工作通知推送）
   setTimeout(() => {
+    if (!CLOUD.user) return; // 未登录（或已退出）不弹「欢迎回来」，避免出现演示人物名
     const rn = myReminders().length;
     const acc = (D().accounts || []).find(a => a.name === me().name);
     if (rn) toast(`欢迎回来，${me().name}${acc ? '（' + acc.emp + '）' : ''}，有 ${rn} 条待办提醒已推送到你的账号`);
@@ -3239,6 +3243,7 @@ function handleAction(act, t, d) {
     case 'roleSheet':
       openSheet({ type: 'role' }); break;
     case 'pickRole':
+      if (CLOUD.user) { toast('云端登录账号的权限由「账号权限绑定」决定，不可手动切换'); break; }
       S.role = t.dataset.k;
       S.page = S.role === 'compliance' ? 'confirm' : S.role === 'production' ? 'replies' : 'tasks';
       S.sub = {}; closeSheet(); render();
@@ -3469,7 +3474,9 @@ function handleAction(act, t, d) {
       const u = (D().accounts || []).find(x => x.emp === emp);
       if (!u) { closeSheet(); break; }
       D().accounts = D().accounts.filter(x => x.emp !== emp);
-      // 同步清理该账号的登录绑定（按姓名匹配的可读提示，实际绑定键为登录名）
+      // 同步清理该账号的登录绑定（按姓名=登录名匹配），删除后重新登录为只读预览
+      const bkDel = String(u.name || '').trim().toLowerCase();
+      if (bkDel && D().roleBindings && D().roleBindings[bkDel]) delete D().roleBindings[bkDel];
       D().roleLog.push({ at: `${todayStr()} ${timeStr(new Date())}`, by: me().name, who: u.name,
         note: `删除账号 ${emp}（原角色 ${ROLES[u.role].name}）` });
       persist(); closeSheet(); render();
@@ -3493,6 +3500,10 @@ function handleAction(act, t, d) {
         const emp = String(dd.emp || '').trim() || 'DD-' + Date.now().toString().slice(-5);
         if (D().accounts.some(x => x.emp === emp)) { toast('工号已存在'); break; }
         D().accounts.push({ emp, name: dd.name.trim(), role: dd.role, shops: dd.shops || [], loginAt: at });
+        // 同步真实权限绑定（云端登录按 roleBindings 判定）
+        const bkNew = dd.name.trim().toLowerCase();
+        D().roleBindings = D().roleBindings || {};
+        D().roleBindings[bkNew] = dd.role;
         D().roleLog.push({ at, by: me().name, who: dd.name.trim(), note: `新增账号，角色 ${ROLES[dd.role].name}` });
         toast('账号已创建：' + dd.name.trim() + '（' + ROLES[dd.role].name + '）');
       } else {
@@ -3502,6 +3513,9 @@ function handleAction(act, t, d) {
         if (before === dd.role && !shopChg) { closeSheet(); toast('未做任何调整'); break; }
         u.role = dd.role;
         u.shops = dd.shops || [];
+        // 同步真实权限绑定（云端登录按 roleBindings 判定）
+        const bk = String(u.name || '').trim().toLowerCase();
+        if (bk) { D().roleBindings = D().roleBindings || {}; D().roleBindings[bk] = dd.role; }
         const note = before !== dd.role
           ? `角色 ${ROLES[before].name} → ${ROLES[dd.role].name}${shopChg ? '，分管车间已更新' : ''}`
           : '分管车间已更新';
