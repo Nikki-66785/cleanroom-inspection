@@ -1350,33 +1350,38 @@ const PAGES = {
   wdetail: { title: '任务详情', back: 'tasks' },
   room: { title: '房间巡检', back: 'wdetail' },
   fdetail: { title: '发现项详情', back: 'records' },
-  ai: { title: 'AI 产线分析', back: 'me' },
+  ai: { title: 'AI 产线分析', tab: true },
   config: { title: '系统配置', back: 'me' },
   audit: { title: '审计追踪', back: 'me' }
 };
 
 function tabsFor(role) {
+  const AI = { k: 'ai', n: '分析', p: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z' };
   if (role === 'inspector') return [
     { k: 'tasks', n: '任务', p: 'M9 11l3 3 8-8M20 12v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1h9' },
     { k: 'records', n: '记录', p: 'M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zM9 8h6M9 12h6M9 16h4' },
     { k: 'stats', n: '统计', p: 'M6 20V10M12 20V4M18 20v-7' },
+    AI,
     { k: 'me', n: '我的', p: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
   ];
   if (role === 'compliance') return [
     { k: 'confirm', n: '确认', p: 'M12 3l7 3v6c0 4.2-3 7.4-7 8.4-4-1-7-4.2-7-8.4V6l7-3zM9 12l2 2 4-4' },
     { k: 'tasks', n: '任务', p: 'M8 4h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2zM9 9h6M9 13h4' },
     { k: 'stats', n: '统计', p: 'M6 20V10M12 20V4M18 20v-7' },
+    AI,
     { k: 'me', n: '我的', p: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
   ];
   if (role === 'preview') return [
     { k: 'records', n: '记录', p: 'M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zM9 8h6M9 12h6M9 16h4' },
     { k: 'stats', n: '统计', p: 'M6 20V10M12 20V4M18 20v-7' },
+    AI,
     { k: 'me', n: '我的', p: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
   ];
   return [
     { k: 'replies', n: '待回复', p: 'M21 12a8 8 0 01-8 8H7l-4 3v-7a8 8 0 118-8h10z' },
     { k: 'records', n: '记录', p: 'M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zM9 8h6M9 12h6' },
     { k: 'stats', n: '统计', p: 'M6 20V10M12 20V4M18 20v-7' },
+    AI,
     { k: 'me', n: '我的', p: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
   ];
 }
@@ -2523,7 +2528,6 @@ function renderMe() {
   <div class="card" style="padding:0 14px">
     ${[
       { act: 'help', n: '使用说明', d: '登录、巡检、确认整改、权限分配一站式指引', show: true },
-      { act: 'goAi', n: 'AI 产线分析', d: '按时间 × 产线聚合分析发现项，给出风险评级与整改建议', show: true },
       { act: 'newTask', n: '分配巡检任务', d: '指派给自己或组内同事，可改派 / 改期', show: S.role === 'inspector' },
       { act: 'goConfig', n: '车间与房间管理', d: `${D().workshops.length} 车间 · ${D().workshops.reduce((n, w) => n + w.rooms.length, 0)} 房间，可新增 / 编辑 / 删除`, show: can('manageData') },
       { act: 'goConfig', n: '巡检配置', d: `频率 ${D().settings.freq} 次/月 · 回复 ${D().settings.replyDays} 天`, show: can('configPolicy') },
@@ -3877,8 +3881,6 @@ function handleAction(act, t, d) {
     case 'help':
       openSheet({ type: 'help' });
       break;
-    case 'goAi':
-      S.page = 'ai'; S.sub = {}; render(); break;
     case 'roleLog':
       if (!can('manageRole')) { toast('无权查看'); break; }
       openSheet({ type: 'roleLog' });
