@@ -1350,6 +1350,7 @@ const PAGES = {
   wdetail: { title: '任务详情', back: 'tasks' },
   room: { title: '房间巡检', back: 'wdetail' },
   fdetail: { title: '发现项详情', back: 'records' },
+  ai: { title: 'AI 产线分析', back: 'me' },
   config: { title: '系统配置', back: 'me' },
   audit: { title: '审计追踪', back: 'me' }
 };
@@ -1896,84 +1897,84 @@ function lineProfile(w) {
 
 /* 规则库：kw 命中关键词（任一）；risk 风险判定；causes 可能原因；sug = {cn,fda,eu} 各自的整改建议（含法规出处） */
 const GMP_RULES = [
-  { kw: ['压差', '气流', '换气', '风速', '风量', '层流', 'A 级', 'A级'],
+  { n: '压差梯度 / 气流组织', kw: ['压差', '气流', '换气', '风速', '风量', '层流', 'A 级', 'A级'],
     risk: '洁净区气流组织/压差梯度失控，悬浮粒子与微生物可能逆向迁移，直接危及无菌保证水平',
     causes: ['送/排风机组故障或高效过滤器（HEPA）泄漏', '压差表未校准或联锁报警失效', '房间气锁/传递窗使用不规范导致压差瞬断'],
     sug: {
       cn: ['立即恢复压差梯度（A/B ≥10Pa，B/C ≥10Pa，不同级别间 ≥10Pa），期间已暴露物料按偏差处理', '排查 HEPA 安装/泄漏（PAO 检漏），更换后重新验证气流流型与自净时间', '将压差表纳入校准计划并恢复报警联锁——依据：中国 GMP（2010）附录1 无菌药品 · 洁净区压差与气流要求'],
       fda: ['进行影响评估：暴露于异常气流/压差的产品批次会议（质量单元）判定处置（放行/拒绝/返工）', '按 21 CFR 211.68 记录并调查设备故障根因，修订预防性维护计划', '恢复后执行气流可视化（烟雾试验）确认 A 级区单向流——依据：FDA Sterile Drug Products Produced by Aseptic Processing (2004) §IV.C'],
       eu: ['按 Annex 1（2022）§5.11-5.13 恢复压差梯度并连续监测，记录须可追溯', 'HEPA 更换/检漏后重新进行气流流型确认，证明无湍流死角——依据：EU GMP Annex 1 §5 洁净区与环境控制'] } },
-  { kw: ['温湿度', '温度', '湿度'],
+  { n: '温湿度控制', kw: ['温湿度', '温度', '湿度'],
     risk: '环境温湿度超出设定范围，可能影响产品稳定性、微生物滋生及人员操作条件',
     causes: ['HVAC 冷热源故障或 PID 参数漂移', '温湿度传感器未校准或布置不合理', 'SOP 未规定允许波动范围与偏离处置'],
     sug: {
       cn: ['核对受影响时段的温湿度连续记录，评估对存储物料/在产品的影响（稳定性数据支持）', '传感器按周期校准（精度 ±0.5℃/±5%RH），绘制房间温湿度分布图', '依据：中国 GMP（2010）附录1 · 洁净区温湿度应与产品质量要求相适应'],
       fda: ['按 21 CFR 211.142 评估仓储/生产区环境对物料质量的影响并记录处置', '将温度/湿度监测纳入 OOS/OOT 管理，偏离须调查——依据：21 CFR 211.42 厂房设施要求'],
       eu: ['按 Annex 1 §5 评估环境条件偏离对无菌保证的影响，必要时扩大取样', '修订环境监测限值与响应行动（Alert/Action Limit）——依据：EU GMP Annex 1 §5 环境控制'] } },
-  { kw: ['沉降菌', '浮游菌', '接触皿', '微生物', '菌落', '表面微生物', '生物负载'],
+  { n: '微生物监测超标', kw: ['沉降菌', '浮游菌', '接触皿', '微生物', '菌落', '表面微生物', '生物负载'],
     risk: '微生物监测数据超标（Action Limit），提示无菌保证体系存在实际或潜在破损',
     causes: ['消毒剂效力不足/轮换不当（耐受菌）', '人员更衣与无菌操作行为缺陷', '环境监测取样点设置或操作不规范'],
     sug: {
       cn: ['对超标点位立即复测并启动偏差调查（含菌株鉴定到属/种）', '评估消毒剂轮换方案（杀孢剂与常规剂交替）与消毒效力验证', '依据：中国 GMP（2010）附录1 · 环境监测与微生物控制要求'],
       fda: ['菌株鉴定后评估其来源（人源/水源/环境），判断是否系统性缺陷', '审查 EM（环境监测）程序与超限处置 SOP 的一致性——依据：FDA Aseptic Guidance (2004) §IX 环境监测'],
       eu: ['按 Annex 1 §9 复核监测点位与频率的 CSA（污染控制策略）匹配性', '超标结果触发 CCS 偏差与 CAPA，必要时停线消毒——依据：EU GMP Annex 1 §9 微生物监测'] } },
-  { kw: ['悬浮粒子', '尘埃粒子', '粒子'],
+  { n: '悬浮粒子超限', kw: ['悬浮粒子', '尘埃粒子', '粒子'],
     risk: '悬浮粒子超限反映洁净区过滤/密封/人员发生缺陷，A/B 区超限直接威胁产品无菌性',
     causes: ['高效过滤器老化泄漏', '人员/物料进出动线不规范', '清洁不彻底产生二次飞扬'],
     sug: {
       cn: ['按 ISO 14644-1 复测并追溯同一 HVAC 单元其他房间', '检查地面/墙面/密封胶完整性，修复后复测', '依据：中国 GMP（2010）附录1 · 悬浮粒子动态标准'],
       fda: ['评估同期生产批次的无菌保证，必要时增加无菌检查取样量', '调查 HVAC 与洁净服管理缺陷——依据：FDA Aseptic Guidance §VI 洁净区分级'],
       eu: ['Annex 1 §5 复核分级（Classification）与监测（Monitoring）数据趋势', '修复后重做 qualification，纳入 CCS 评审——依据：EU GMP Annex 1 §5/§9'] } },
-  { kw: ['清洁', '消毒', '灭菌', '清洗', '残留', '清洁效期'],
+  { n: '清洁 / 消毒 / 灭菌', kw: ['清洁', '消毒', '灭菌', '清洗', '残留', '清洁效期'],
     risk: '清洁/消毒程序失效可能造成产品残留或微生物滋生，引发交叉污染与细菌内毒素风险',
     causes: ['清洁 SOP 与实际设备/物料不匹配', '清洁效期未经挑战验证', '消毒剂配制浓度/作用时间失控'],
     sug: {
       cn: ['核查清洁验证覆盖范围（最难清洁部位/取样点/回收率），效期超期样品按偏差处置', '重新挑战清洁效期并修订 SOP，加强执行监督（录像抽查）', '依据：中国 GMP（2010）第六章 设备 · 清洁与状态标识要求'],
       fda: ['按 21 CFR 211.67 评估清洁程序有效性，含最难清洁位置回收率研究', '残留限度以最低日剂量/10ppm/目视等策略复核——依据：21 CFR 211.67 设备清洁'],
       eu: ['按 Annex 1 §8 与 Part I Chapter 3 评估清洁保持时间（Hold Time）研究', '纳入 CCS 清洁与消毒章节并更新消毒剂轮换——依据：EU GMP Annex 1 §8 清洁与消毒'] } },
-  { kw: ['密封', '轧盖', '西林瓶', '胶塞', '安瓿', '完整性', '冻干'],
+  { n: '容器密封完整性（CCI）', kw: ['密封', '轧盖', '西林瓶', '胶塞', '安瓿', '完整性', '冻干'],
     risk: '容器密封完整性（CCI）缺陷可能导致无菌产品在效期内失污染，属重大质量安全风险',
     causes: ['轧盖机参数（滚轮压力/位置）漂移', '胶塞/瓶型匹配性未经验证', '冻干出箱后压塞不完全'],
     sug: {
       cn: ['对相关批次启动 CCI 评估（染色浸入/真空衰减/高压放电抽验）', '重新进行轧盖 3P 验证（参数/性能/工艺），纳入巡检点检项目', '依据：中国 GMP（2010）附录1 · 密封性检查要求'],
       fda: ['按 USP <1207> 评估 CCI 方法适用性并对留样复检', '偏差调查覆盖参数漂移期间全部批次——依据：FDA Aseptic Guidance §VII 容器密封系统'],
       eu: ['Annex 1（2022）首次强制要求 100% CCI 检查（冻干产品），评估合规差距', '方法须经验证并具备确定性（确定性方法优先）——依据：EU GMP Annex 1 §10 & USP <1207>'] } },
-  { kw: ['标识', '标签', '状态', '效期', '过期'],
+  { n: '状态标识 / 效期管理', kw: ['标识', '标签', '状态', '效期', '过期'],
     risk: '状态标识/效期管理缺陷会造成不合格物料误用或过期物料流入生产，属物料放行体系漏洞',
     causes: ['标识 SOP 未覆盖全部物料/器具状态', 'ERP/MES 状态与现场标识不同步', '定期核查（Line Clearance）执行不到位'],
     sug: {
       cn: ['立即盘点该区域全部物料/器具状态，误用批次启动追溯与评估', '修订状态标识管理 SOP，明确颜色/格式/责任人与复核频率', '依据：中国 GMP（2010）第一百一十二条物料管理 · 状态标识要求'],
       fda: ['按 21 CFR 211.80-211.94 核查物料状态控制全链条', '评估是否存在标签混用风险（211.130）——依据：21 CFR Subpart E 物料控制'],
       eu: ['Part I Chapter 5 生产管理 · 现场清场（Line Clearance）核查记录复核', '修订物料与器具状态标识矩阵——依据：EU GMP Part I Chapter 5'] } },
-  { kw: ['记录', '文件', '签名', '数据完整性', '批记录', '填写'],
+  { n: '记录 / 数据可靠性', kw: ['记录', '文件', '签名', '数据完整性', '批记录', '填写'],
     risk: '记录/数据完整性缺陷属于数据可靠性（Data Integrity）问题，直接影响批放行数据可信度',
     causes: ['记录设计存在可共享/可擦除空间', '人员 ALCOA+ 培训不足', '复核流程流于形式'],
     sug: {
       cn: ['按 ALCOA+ 原则排查该记录体系全部受影响数据，启动数据可靠性自查', '修订记录模板（受控发放/逐页编号），开展 DI 专项培训与考核', '依据：中国 GMP（2010）第八章 文件管理 · 记录要求'],
       fda: ['按 21 CFR 211.180/211.194 评估记录保存与审计追踪完整性', '对照 FDA Data Integrity Guidance (2018) 开展差距分析——依据：21 CFR Part 11 电子记录'],
       eu: ['按 EU GMP Part I Chapter 4 与 Annex 11（计算机化系统）复核', '评估审计追踪（Audit Trail）评审频率与内容——依据：EU GMP Annex 11'] } },
-  { kw: ['更衣', '洁净服', '人员', '行为', '穿戴', '洗手'],
+  { n: '人员卫生 / 更衣行为', kw: ['更衣', '洁净服', '人员', '行为', '穿戴', '洗手'],
     risk: '人员卫生与更衣缺陷是洁净区微生物污染的首要来源，直接影响无菌操作有效性',
     causes: ['更衣流程培训/资质确认不足', '镜子/监督点设置不合理', '洁净服洗涤灭菌效期管理缺失'],
     sug: {
       cn: ['开展更衣资质再确认（含 microbiological gowning qualification）', '增加更衣室镜面监督点位与行为规范现场稽核', '依据：中国 GMP（2010）第四章 人员卫生 · 更衣与行为规范'],
       fda: ['按 FDA Aseptic Guidance §VI 评估人员监测（PM）与干预记录趋势', '开展行为观察（Behavioral Observation）计划——依据：FDA Aseptic Guidance 人员培训与确认'],
       eu: ['Annex 1 §7 评估更衣确认（Visual & Microbiological Assessment of Gowning）', '更新人员培训矩阵与资质标准——依据：EU GMP Annex 1 §7 人员'] } },
-  { kw: ['设备', '校准', '维护', '仪表', '传感器', '失效'],
+  { n: '设备 / 校准 / 维护', kw: ['设备', '校准', '维护', '仪表', '传感器', '失效'],
     risk: '设备/仪表超校准或失效状态下产生的过程数据不可信，相关批次质量属性存疑',
     causes: ['校准计划漏项/逾期', '关键仪表无备用与预警机制', '维护后未做再确认'],
     sug: {
       cn: ['对超校准仪表追溯至上次合格校准，期间数据全部标记并评估', '校准计划增加提前预警与备用件管理，维护后执行再确认', '依据：中国 GMP（2010）第五章 设备 · 校准与维护要求'],
       fda: ['按 21 CFR 211.160(b) 评估科学合理标准符合性', '关键仪表清单（Critical Instruments）与校准周期复核——依据：21 CFR 211.160 实验室控制'],
       eu: ['按 Part I Chapter 3 设备确认与校准要求复核', '评估对 CCS 与产品年度回顾的影响——依据：EU GMP Part I Chapter 3'] } },
-  { kw: ['物料', '称量', '配料', '储存', '冷链', '领用'],
+  { n: '物料 / 称量 / 配料', kw: ['物料', '称量', '配料', '储存', '冷链', '领用'],
     risk: '物料管理缺陷可能导致配料差错或物料劣化，直接影响产品质量一致性',
     causes: ['称量复核流于形式', '储运条件与稳定性数据不匹配', '先进先出（FIFO）执行偏差'],
     sug: {
       cn: ['核查该物料批次全部称量/投料记录，评估差错影响', '复核储运条件验证数据，修订领用与复核流程', '依据：中国 GMP（2010）第六章 物料与产品 · 储存与领用要求'],
       fda: ['按 21 CFR 211.84/211.101 核查物料检验与投料复核', '冷链物料评估温度偏离期间的稳定性——依据：21 CFR Subpart E'],
       eu: ['按 Part I Chapter 5 评估物料放行与称量交叉复核', '必要时增加双人复核或电子秤联锁——依据：EU GMP Part I Chapter 5'] } },
-  { kw: ['交叉', '混淆', '疑似异物', '异物', '虫害', '地漏', '排水', '传递窗', '气锁'],
+  { n: '交叉污染 / 异物 / 厂房设施', kw: ['交叉', '混淆', '疑似异物', '异物', '虫害', '地漏', '排水', '传递窗', '气锁'],
     risk: '存在交叉污染或异物引入风险，严重时造成批次报废或产品安全事件',
     causes: ['厂房设施密封性/虫害控制缺陷', '清场（Line Clearance）执行不彻底', '物料/人员动线交叉设计不合理'],
     sug: {
@@ -2034,6 +2035,98 @@ function aiBlockHTML(f) {
       ⚠ 本分析由内置规则引擎生成，仅供整改决策参考，最终处置须经质量受权人（QP）审核。
     </div>
   </div>`;
+}
+
+/* ---------- 独立「AI 分析」模块：按时间 × 产线聚合分析 ---------- */
+const AI_RANGES = { m1: '本月', m3: '近 3 月', all: '全部' };
+function inAiRange(f, k) {
+  if (k === 'all') return true;
+  const m = String(f.foundAt || '').slice(0, 7);
+  if (k === 'm1') return m === month();
+  const d = new Date(); const arr = [];
+  for (let i = 0; i < 3; i++) {
+    const dt = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    arr.push(dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0'));
+  }
+  return arr.indexOf(m) >= 0;
+}
+function aiLineReport(w, k) {
+  const list = (D().findings || []).filter(f => f.workshopId === w.id && inAiRange(f, k));
+  const ruleHit = {}, causes = [], trend = {};
+  const sug = { cn: [], fda: [], eu: [] };
+  list.forEach(f => {
+    const text = [f.title, f.desc, (f.cats || []).join(' ')].join(' ');
+    GMP_RULES.forEach(r => {
+      if (!r.kw.some(kw => text.indexOf(kw) >= 0)) return;
+      ruleHit[r.n] = (ruleHit[r.n] || 0) + 1;
+      r.causes.forEach(c => { if (causes.indexOf(c) < 0) causes.push(c); });
+      ['cn', 'fda', 'eu'].forEach(std => (r.sug[std] || []).forEach(x => { if (sug[std].indexOf(x) < 0) sug[std].push(x); }));
+    });
+    const m = String(f.foundAt || '').slice(0, 7);
+    trend[m] = (trend[m] || 0) + 1;
+  });
+  const topRules = Object.keys(ruleHit).sort((a, b) => ruleHit[b] - ruleHit[a]).slice(0, 3);
+  const months = Object.keys(trend).sort();
+  const prof = lineProfile(w);
+  const critical = list.filter(f => f.level === 'critical').length;
+  const score = critical * 5 + list.filter(f => f.level === 'major').length * 2 + list.filter(f => f.level === 'minor').length * 1;
+  const grade = score >= 10 ? '高' : score >= 4 ? '中' : list.length ? '低' : '—';
+  if (prof.key === 'adc') {
+    sug.cn.push('产线级建议：ADC 专用线每季度评估一次密闭防护与毒素残留清洁验证的符合性，纳入年度产品回顾（APR）');
+    sug.fda.push('产线级建议：将 ADC 毒素暴露偏差纳入质量风险管理（ICH Q9），评审共用设施 PDE 限度');
+    sug.eu.push('产线级建议：CCS 年度评审中单独复核 ADC 线的隔离/密闭控制章节');
+  }
+  return { list, count: list.length, critical, score, grade, topRules, ruleHit, causes, sug, trend, months, prof };
+}
+function renderAi() {
+  const k = AI_RANGES[S.sub.aiRange] ? S.sub.aiRange : 'm3';
+  const std = AI_STD[S.sub.aiStd] ? S.sub.aiStd : 'cn';
+  const reports = D().workshops.map(w => ({ w: w, r: aiLineReport(w, k) })).sort((a, b) => b.r.score - a.r.score);
+  const total = reports.reduce((n, x) => n + x.r.count, 0);
+  const totalCrit = reports.reduce((n, x) => n + x.r.critical, 0);
+  const worst = reports[0] && reports[0].r.count ? reports[0] : null;
+  const chips = Object.keys(AI_RANGES).map(function (x) {
+    return '<span class="tag ' + (x === k ? 'pri' : 'gray') + '" style="cursor:pointer;padding:5px 12px" data-act="aiRange" data-k="' + x + '">' + AI_RANGES[x] + '</span>';
+  }).join('');
+  const stds = Object.keys(AI_STD).map(function (x) {
+    return '<span class="tag ' + (x === std ? 'pri' : 'gray') + '" style="cursor:pointer;font-size:10px;padding:5px 9px" data-act="aiStd" data-s="' + x + '">' + AI_STD[x].name + '</span>';
+  }).join('');
+  let html = '<div class="dt-hero com"><div style="position:relative;z-index:1">' +
+    '<div class="hero-date">基于 ' + total + ' 条发现项 · ' + totalCrit + ' 条重大</div>' +
+    '<div class="hero-h">AI 产线分析</div>' +
+    '<div class="hero-sub">' + AI_STD[std].name + ' 依据 · ' + AI_RANGES[k] + '统计</div></div></div>' +
+    '<div class="row" style="gap:6px;margin:12px 14px 0;flex-wrap:wrap">' + chips + '<span style="flex:1"></span>' + stds + '</div>';
+  if (!total) {
+    return html + '<div class="empty" style="padding-top:40px"><b>所选时间范围内暂无发现项</b>切换时间范围后重试</div>';
+  }
+  html += '<div class="sec-title"><h3>总览</h3><span></span></div>' +
+    '<div class="card tiny" style="line-height:1.9">' + AI_RANGES[k] + '共登记发现项 <b>' + total + '</b> 条（重大 ' + totalCrit + ' 条）。' +
+    '风险得分最高的产线是 <b>' + esc(worst.w.name) + '</b>（' + worst.r.prof.label + '，得分 ' + worst.r.score + '，评级「' + worst.r.grade + '」）。' +
+    '高频问题集中在：' + (worst.r.topRules.length ? esc(worst.r.topRules.join('、')) : '未命中专项规则') + '。' +
+    '建议优先针对该产线组织专项 CAPA，并核查' + esc(worst.r.prof.focus) + '。</div>';
+  reports.filter(function (x) { return x.r.count; }).forEach(function (x) {
+    const r = x.r;
+    const max = Math.max(1, r.months.map(function (m) { return r.trend[m]; }).reduce(function (a, b) { return Math.max(a, b); }, 1));
+    const bars = r.months.map(function (m) {
+      const v = r.trend[m] || 0;
+      return '<div style="flex:1;text-align:center"><div style="height:' + Math.max(2, Math.round(v / max * 46)) + 'px;background:var(--pri);border-radius:3px 3px 0 0;margin:0 3px"></div>' +
+        '<div class="tiny" style="font-size:9px">' + m.slice(5) + '</div><div class="tiny" style="font-size:9px;font-weight:700">' + v + '</div></div>';
+    }).join('');
+    html += '<div class="sec-title"><h3>' + esc(x.w.name) + '</h3><span>' + r.prof.label + ' · 风险' + r.grade + '</span></div>' +
+      '<div class="card">' +
+      '<div class="row" style="gap:6px;margin-bottom:8px;flex-wrap:wrap">' +
+      '<span class="tag pri">发现项 ' + r.count + '</span>' +
+      (r.critical ? '<span class="tag danger">重大 ' + r.critical + '</span>' : '') +
+      '<span class="tag ' + (r.grade === '高' ? 'danger' : r.grade === '中' ? 'warn' : 'ok') + '">风险评级 ' + r.grade + '（得分 ' + r.score + '）</span>' +
+      '</div>' +
+      (r.months.length ? '<div style="display:flex;align-items:flex-end;height:66px;margin:6px 0 2px">' + bars + '</div>' : '') +
+      (r.topRules.length ? '<div style="margin:8px 0"><span style="font-size:11.5px;font-weight:650">高频规则</span><div class="tiny" style="margin-top:3px;line-height:1.7">' + r.topRules.map(function (n) { return n + '（' + r.ruleHit[n] + ' 次）'; }).join('<br>') + '</div></div>' : '') +
+      (r.sug[std].length ? '<div style="margin:8px 0 2px"><span style="font-size:11.5px;font-weight:650">整改建议（' + AI_STD[std].name + '）</span><div class="tiny" style="margin-top:3px;line-height:1.8">' + r.sug[std].map(esc).join('<br>') + '</div></div>'
+        : '<div class="tiny" style="margin-top:6px">暂无命中专项规则：按 CAPA 通用流程管理</div>') +
+      '</div>';
+  });
+  html += '<div class="tiny" style="padding:4px 16px 14px;line-height:1.7;color:var(--ink3)">⚠ 分析由内置规则引擎生成，供管理决策参考；处置措施须经质量受权人（QP）审核确认。</div>';
+  return html;
 }
 
 /* ============================================================
@@ -2430,6 +2523,7 @@ function renderMe() {
   <div class="card" style="padding:0 14px">
     ${[
       { act: 'help', n: '使用说明', d: '登录、巡检、确认整改、权限分配一站式指引', show: true },
+      { act: 'goAi', n: 'AI 产线分析', d: '按时间 × 产线聚合分析发现项，给出风险评级与整改建议', show: true },
       { act: 'newTask', n: '分配巡检任务', d: '指派给自己或组内同事，可改派 / 改期', show: S.role === 'inspector' },
       { act: 'goConfig', n: '车间与房间管理', d: `${D().workshops.length} 车间 · ${D().workshops.reduce((n, w) => n + w.rooms.length, 0)} 房间，可新增 / 编辑 / 删除`, show: can('manageData') },
       { act: 'goConfig', n: '巡检配置', d: `频率 ${D().settings.freq} 次/月 · 回复 ${D().settings.replyDays} 天`, show: can('configPolicy') },
@@ -2644,7 +2738,7 @@ function renderAudit() {
 
 function render() {
   // 预览角色（只读）：仅可看已确认记录、统计、我的；其余页面重定向
-  if (S.role === 'preview' && ['records', 'stats', 'me', 'fdetail'].indexOf(S.page) < 0) {
+  if (S.role === 'preview' && ['records', 'stats', 'me', 'fdetail', 'ai'].indexOf(S.page) < 0) {
     S.page = 'records'; S.sub = {};
   }
   // 审计追踪仅巡检人 / 合规管理可访问，其余角色回到「我的」
@@ -2654,7 +2748,7 @@ function render() {
   const map = {
     tasks: renderTasks, records: renderRecords, confirm: renderConfirm, replies: renderReplies,
     stats: renderStats, me: renderMe, wdetail: renderWDetail, room: renderRoom,
-    fdetail: renderFDetail, config: renderConfig, audit: renderAudit
+    fdetail: renderFDetail, config: renderConfig, audit: renderAudit, ai: renderAi
   };
   el('view').innerHTML = (map[S.page] || renderTasks)();
   el('phone').classList.toggle('has-bar', false);
@@ -3778,9 +3872,13 @@ function handleAction(act, t, d) {
     }
     case 'aiStd':
       S.sub.aiStd = t.dataset.s; render(); break;
+    case 'aiRange':
+      S.sub.aiRange = t.dataset.k; render(); break;
     case 'help':
       openSheet({ type: 'help' });
       break;
+    case 'goAi':
+      S.page = 'ai'; S.sub = {}; render(); break;
     case 'roleLog':
       if (!can('manageRole')) { toast('无权查看'); break; }
       openSheet({ type: 'roleLog' });
@@ -4338,7 +4436,7 @@ window.__t = {
   voiceStart, voiceStop, voiceSupported, lineList, scopeWs, myReminders,
   rangeBounds, rangeData, rangeLabel, deleteImpact, doDeleteRange, exportExcel, RANGES,
   doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll,
-  aiAnalyze, lineProfile, GMP_RULES,
+  aiAnalyze, lineProfile, GMP_RULES, aiLineReport, renderAi,
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSend, loginSubmit, doFinishLogin,
   dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData,
   applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel,
