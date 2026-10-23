@@ -727,9 +727,165 @@ function restSaveDb(rev, data) {
     return { rev, data };
   }));
 }
-const CLOUD = { on: false, mode: '', rev: 0, pushing: false, pending: false, timer: null, err: false, user: null };
+const CLOUD = { on: false, mode: '', rev: 0, pushing: false, pending: false, timer: null, err: false, user: null, base: null, snappedRev: -1, dropAck: false };
+
+/* ---------- 数据保护：云端快照 / 本地多版本 / 备份恢复 / 骤减护栏 ---------- */
+const SNAP = { prefix: 'snap_', keep: 30, minGap: 10 * 60 * 1000, lastAt: 0 };
+const HIST_KEY = 'cri_v2_hist';
+const HIST_KEEP = 5;
+
+function dataStats(d) {
+  const ws = (d && d.workshops) || [];
+  return {
+    ws: ws.length,
+    rooms: ws.reduce((n, w) => n + ((w.rooms || []).length), 0),
+    acc: ((d && d.accounts) || []).length,
+    bind: Object.keys((d && d.roleBindings) || {}).length,
+    task: ((d && d.tasks) || []).length,
+    find: ((d && d.findings) || []).length
+  };
+}
+function stampNow() {
+  const t = new Date(), p = n => String(n).padStart(2, '0');
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;
+}
+function snapDocId(rev) {
+  const t = new Date(), p = n => String(n).padStart(2, '0');
+  return `${SNAP.prefix}${t.getFullYear()}${p(t.getMonth() + 1)}${p(t.getDate())}T${p(t.getHours())}${p(t.getMinutes())}${p(t.getSeconds())}_r${rev}`;
+}
+/* 通用文档读写（快照文档用；仅 REST 网关通道可用） */
+function restGetDoc(id) {
+  return restToken().then(tk => fetch(restDbUrl('/' + id), { headers: restHeaders(tk), cache: 'no-store' }))
+    .then(r => r.json().then(j => {
+      if (j && j.code === 'DOCUMENT_NOT_FOUND') return null;
+      if (j && j.code) throw new Error(j.message || j.code);
+      return ejsonNorm(j);
+    }));
+}
+function restPutDoc(id, obj) {
+  return restToken().then(tk => fetch(restDbUrl('/' + id), {
+    method: 'PATCH', headers: restHeaders(tk),
+    body: JSON.stringify({ data: obj, upsert: true, replaceMode: true })
+  })).then(r => r.json().then(j => {
+    if (j && j.code) throw new Error(j.message || j.code);
+    return true;
+  }));
+}
+function restDelDoc(id) {
+  return restToken().then(tk => fetch(restDbUrl('/' + id), { method: 'DELETE', headers: restHeaders(tk) }))
+    .then(r => r.json().then(j => {
+      if (j && j.code) throw new Error(j.message || j.code);
+      return true;
+    }));
+}
+function restListDocs(limit) {
+  return restToken().then(tk => fetch(restDbUrl('?limit=' + (limit || 100)), { headers: restHeaders(tk), cache: 'no-store' }))
+    .then(r => r.json().then(j => {
+      if (j && j.code) throw new Error(j.message || j.code);
+      return (j.list || []).map(it => {
+        const o = ejsonNorm(it);
+        o.id = it._id;
+        return o;
+      });
+    }));
+}
+function snapWrite(rev, data, note) {
+  if (!restNeed() || !data) return Promise.resolve(false);
+  const payload = {
+    rev, at: new Date().toISOString(), by: (CLOUD.user && (CLOUD.user.name || CLOUD.user.username)) || (me() || {}).name || '',
+    note: note || '', stats: dataStats(data), data
+  };
+  return restPutDoc(snapDocId(rev), payload)
+    .then(() => { SNAP.lastAt = Date.now(); return true; })
+    .catch(e => { console.warn('快照写入失败', e && e.message); return false; });
+}
+/* 自动快照：写入前留档上一版；10 分钟内不重复，避免每次编辑都多写一份 */
+function snapMaybe(rev, data, note) {
+  if (!data) return;
+  if (CLOUD.snappedRev === rev) return;
+  if (Date.now() - SNAP.lastAt < SNAP.minGap) return;
+  CLOUD.snappedRev = rev;
+  snapWrite(rev, data, note);
+}
+function snapListCloud() {
+  return restListDocs(100).then(list => list
+    .filter(d => String(d.id || '').indexOf(SNAP.prefix) === 0)
+    .map(d => ({ id: d.id, at: d.at || '', rev: d.rev, by: d.by || '', note: d.note || '', stats: d.stats || {} }))
+    .sort((a, b) => String(b.id).localeCompare(String(a.id))));
+}
+function snapPruneCloud() {
+  return snapListCloud().then(list => {
+    const extra = list.slice(SNAP.keep);
+    extra.forEach(d => restDelDoc(d.id).catch(() => {}));
+    return extra.length;
+  }).catch(() => 0);
+}
+function snapGet(id) {
+  return restGetDoc(id);
+}
+/* 本地多版本缓存（L2）：保留最近 5 个版本，超配额自动裁旧 */
+function histList() {
+  try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]') || []; } catch (e) { return []; }
+}
+function histSig(d) {
+  const s = dataStats(d);
+  return [s.ws, s.rooms, s.acc, s.bind, s.task, s.find].join('-') + '|' + hashStr(d);
+}
+/* djb2 字符串哈希：用于判断两版内容是否真的不同（避免编辑后签名不变） */
+function hashStr(obj) {
+  let str;
+  try { str = JSON.stringify(obj); } catch (e) { return '0'; }
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36) + '_' + str.length.toString(36);
+}
+function histSave(data) {
+  if (!data || !Array.isArray(data.workshops)) return;
+  try {
+    let arr = histList();
+    const sig = histSig(data);
+    if (arr[0] && arr[0].sig === sig) arr[0].at = stampNow();
+    else arr.unshift({ at: stampNow(), sig, stats: dataStats(data), data: JSON.parse(JSON.stringify(data)) });
+    arr = arr.slice(0, HIST_KEEP);
+    const write = a => localStorage.setItem(HIST_KEY, JSON.stringify(a));
+    try { write(arr); return; } catch (e) { /* 配额不足 → 逐步降级 */ }
+    // 降级 1：去掉历史版本里的照片（保留当前版）
+    const slim = JSON.parse(JSON.stringify(arr));
+    slim.forEach((v, i) => {
+      if (i === 0) return;
+      (v.data.findings || []).forEach(f => { f.photos = []; if (f.reply) f.reply.photos = []; });
+    });
+    try { write(slim); return; } catch (e) { /* 继续降级 */ }
+    // 降级 2：只保留最近 2 版
+    try { write(slim.slice(0, 2)); } catch (e) { console.warn('本地历史写入失败', e && e.message); }
+  } catch (e) { console.warn('历史版本保存异常', e && e.message); }
+}
+/* 骤减护栏（L4）：关键数据量比上一版明显减少时先确认 */
+function dropCheck(prev, next) {
+  if (!prev || !next) return null;
+  const a = dataStats(prev), b = dataStats(next), out = [];
+  const chk = (k, label, minAbs, ratio) => {
+    if (a[k] >= minAbs && b[k] < a[k] * ratio) out.push({ label, from: a[k], to: b[k] });
+  };
+  chk('rooms', '房间', 3, 0.7);
+  chk('acc', '账号', 2, 0.8);
+  chk('bind', '权限绑定', 2, 0.8);
+  chk('task', '巡检任务', 3, 0.7);
+  chk('find', '发现项', 3, 0.7);
+  return out.length ? out : null;
+}
+
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { console.warn('存储失败', e); }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(D()));
+  } catch (e) {
+    // 本机空间不足：先丢掉历史版本缓存腾空间，保证当前数据能落盘
+    try {
+      localStorage.removeItem(HIST_KEY);
+      localStorage.setItem(KEY, JSON.stringify(D()));
+    } catch (e2) { console.warn('存储失败', e2); }
+  }
+  histSave(D());
   if (CLOUD.on) cloudPush();
 }
 
@@ -848,13 +1004,23 @@ function applyCloudData(data) {
   // 账号表迁移：清 dept、补登录名、迁移旧绑定键
   migrateAccounts(S.data);
   try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { /* 本地缓存失败可忽略 */ }
+  // 记住云端这一版，作为下次写入前留快照 / 骤减比对的基线
+  try { CLOUD.base = JSON.parse(JSON.stringify(S.data)); } catch (e) { CLOUD.base = null; }
 }
 
 function cloudPush() {
   if (!CLOUD.on) return Promise.resolve(false);
   if (CLOUD.pushing) { CLOUD.pending = true; return Promise.resolve(false); }
+  // 骤减护栏：关键数据明显变少 → 先让用户确认，确认后放行这一次
+  if (!CLOUD.dropAck && CLOUD.mode === 'db' && CLOUD.base) {
+    const drops = dropCheck(CLOUD.base, D());
+    if (drops) { CLOUD.dropPending = drops; openSheet({ type: 'dropWarn', drops }); return Promise.resolve(false); }
+  }
+  CLOUD.dropAck = false;
   CLOUD.pushing = true;
   const nextRev = CLOUD.rev + 1;
+  // 写入前给上一版留快照（节流；失败不影响保存）
+  if (CLOUD.mode === 'db' && CLOUD.base) snapMaybe(CLOUD.rev, CLOUD.base, '自动快照');
   const send = CLOUD.mode === 'db'
     ? dbSave(nextRev, D()).then(() => ({ ok: true }))
     : fetch('/api/data', {
@@ -862,7 +1028,12 @@ function cloudPush() {
         body: JSON.stringify({ rev: CLOUD.rev, data: D() })
       }).then(r => r.json().then(j => ({ ok: r.ok, j })));
   return send.then(res => {
-    if (res.ok) { CLOUD.rev = nextRev; CLOUD.err = false; return true; }
+    if (res.ok) {
+      CLOUD.rev = nextRev; CLOUD.err = false;
+      try { CLOUD.base = JSON.parse(JSON.stringify(D())); } catch (e) { CLOUD.base = null; }
+      if (nextRev % 20 === 0) snapPruneCloud();   // 每 20 次写入清理一次旧快照
+      return true;
+    }
     if (res.j && typeof res.j.rev === 'number' && res.j.data) {
       // 冲突（他人已先提交）：以服务端最新版本为准
       CLOUD.rev = res.j.rev; applyCloudData(res.j.data);
@@ -899,6 +1070,14 @@ function restore() {
       if (o && Array.isArray(o.tasks) && Array.isArray(o.workshops) && o.workshops.length) return o;
     }
   } catch (e) { console.warn('读取失败', e); }
+  // 主缓存不可用 → 退到本地多版本缓存里的最新一版
+  try {
+    const h = histList();
+    if (h.length && h[0].data && Array.isArray(h[0].data.workshops) && h[0].data.workshops.length) {
+      console.warn('主缓存不可用，已从本地历史版本恢复（' + h[0].at + '）');
+      return h[0].data;
+    }
+  } catch (e) { /* 历史缓存也不可用 */ }
   return null;
 }
 
@@ -2603,6 +2782,7 @@ function renderMe() {
       { act: 'goConfig', n: '巡检配置', d: `频率 ${D().settings.freq} 次/月 · 回复 ${D().settings.replyDays} 天`, show: can('configPolicy') },
       { act: 'export', n: '导出全部巡检数据', d: 'Excel 文件：发现项明细 + 任务汇总两个工作表', show: can('exportAll') },
       { act: 'dataMgr', n: '按日期导出 / 删除', d: '选择日期区间批量导出，或清理历史数据', show: can('exportAll') },
+      { act: 'dataProtect', n: '数据保护', d: '历史版本回滚 · 一键快照 · 备份导出导入', show: can('exportAll') },
       { act: 'goAudit', n: '审计追踪', d: '角色变更、房间回复人调整、数据删除留痕', show: can('viewAudit') },
       { act: 'roleSheet', n: '切换角色', d: '巡检人 / 合规管理 / 整改回复人 / 预览', show: true },
       { act: 'chgPwd', n: '修改密码', d: '验证码二次确认后修改 CloudBase 登录密码', show: authEnabled() && !!CLOUD.user },
@@ -3423,6 +3603,26 @@ function renderSheet() {
 
   else if (s.type === 'dataMgr') {
     html = dataMgrHTML();
+  }
+
+  else if (s.type === 'dataProtect') {
+    html = dataProtectHTML();
+  }
+
+  else if (s.type === 'snapConfirm') {
+    html = snapConfirmHTML();
+  }
+
+  else if (s.type === 'backupImport') {
+    html = backupImportHTML();
+  }
+
+  else if (s.type === 'importConfirm') {
+    html = importConfirmHTML();
+  }
+
+  else if (s.type === 'dropWarn') {
+    html = dropWarnHTML();
   }
 
   else if (s.type === 'delConfirm') {
@@ -4290,6 +4490,48 @@ function handleAction(act, t, d) {
       if (!can('exportAll')) { toast('仅合规管理可进行数据管理'); break; }
       openSheet({ type: 'dataMgr', draft: Object.assign({ range: 'month', from: '', to: '' }, S.del || {}) });
       break;
+    case 'dataProtect': openDataProtect(); break;
+    case 'snapNow': {
+      if (!can('exportAll')) { toast('仅合规管理可创建快照'); break; }
+      snapWrite(CLOUD.rev, D(), '手动创建').then(ok => {
+        toast(ok ? '已创建云端快照' : '快照创建失败，请检查网络或云环境配置');
+        if (ok && S.sheet && S.sheet.type === 'dataProtect') {
+          snapListCloud().then(list => { S.sheet.snaps = list; renderSheet(); }).catch(() => {});
+        }
+      });
+      break;
+    }
+    case 'snapRestoreAsk': {
+      if (!can('exportAll')) { toast('仅合规管理可恢复历史版本'); break; }
+      const src = t.dataset.src;
+      const at = t.dataset.at || '';
+      if (src === 'local') {
+        const h = histList()[Number(t.dataset.idx)] || {};
+        openSheet({ type: 'snapConfirm', restoreSrc: 'local', restoreIdx: Number(t.dataset.idx), restoreAt: h.at || at, restoreStats: h.stats || dataStats(h.data || {}) });
+      } else {
+        const sn = ((S.sheet && S.sheet.snaps) || []).find(x => x.id === t.dataset.id) || {};
+        openSheet({ type: 'snapConfirm', restoreSrc: 'cloud', restoreId: t.dataset.id, restoreAt: fmtAt(sn.at || at), restoreStats: sn.stats || {} });
+      }
+      break;
+    }
+    case 'snapRestoreDo': snapRestoreDo(); break;
+    case 'backupExport':
+      if (!can('exportAll')) { toast('仅合规管理可导出备份'); break; }
+      backupExport();
+      break;
+    case 'backupImport':
+      if (!can('exportAll')) { toast('仅合规管理可导入备份'); break; }
+      openSheet({ type: 'backupImport' });
+      break;
+    case 'importDo': importDo(); break;
+    case 'dropConfirm':
+      CLOUD.dropPending = null; CLOUD.dropAck = true;
+      closeSheet(); cloudPush();
+      break;
+    case 'dropCancel':
+      CLOUD.dropPending = null; CLOUD.dropAck = false;
+      closeSheet(); toast('已取消提交，请检查数据或刷新页面');
+      break;
     case 'rangePick': {
       const d = rangeDraft();
       d.range = t.dataset.k;
@@ -4341,6 +4583,8 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const f = e.target.closest('[data-f]');
   if (f && S.sheet && S.sheet.draft) { S.sheet.draft[f.dataset.f] = f.value; return; }
+  const imp = e.target.closest('[data-import]');
+  if (imp && imp.files && imp.files[0]) { backupImportPick(imp.files[0]); imp.value = ''; return; }
   const file = e.target.closest('[data-photo]');
   if (file && file.files && file.files.length) {
     const s = S.sheet;
@@ -4479,6 +4723,7 @@ function doDeleteRange() {
     findings: before.f - D().findings.length, tasks: before.t - D().tasks.length
   });
   S.picked = []; S.del = { range: d.range, from: d.from, to: d.to };
+  CLOUD.dropAck = true;   // 已二次确认的批量删除，不再触发骤减提示
   persist(); closeSheet(); render();
   toast(`已删除 ${before.f - D().findings.length} 条发现项 / ${before.t - D().tasks.length} 个任务，操作已记入删除日志`);
 }
@@ -4486,6 +4731,206 @@ function doDeleteRange() {
 /* ============================================================
    数据管理弹层（按日期导出 / 删除）
    ============================================================ */
+/* ============================================================
+   数据保护弹层（历史版本 / 备份恢复）
+   ============================================================ */
+function statChips(st) {
+  return [['车间', st.ws], ['房间', st.rooms], ['账号', st.acc], ['绑定', st.bind], ['任务', st.task], ['发现项', st.find]]
+    .map(([n, v]) => `<span class="tag gray" style="font-size:9.5px">${n} ${v}</span>`).join('');
+}
+function dataProtectHTML() {
+  const s = S.sheet;
+  const st = dataStats(D());
+  const hist = histList();
+  const cloud = s.snaps;          // null=读取中，[]=无快照
+
+  const stat = `
+  <div class="card" style="padding:12px 14px;margin-bottom:10px">
+    <div class="row" style="justify-content:space-between">
+      <div class="tiny">当前数据</div>
+      <b style="font-size:11.5px;color:${CLOUD.on ? 'var(--pri)' : 'var(--ink3)'}">${CLOUD.on ? '云端 rev ' + CLOUD.rev : '本地模式（未连云端）'}</b>
+    </div>
+    <div class="row" style="gap:5px;margin-top:9px;flex-wrap:wrap">${statChips(st)}</div>
+  </div>`;
+
+  const acts = `
+  <div class="card" style="padding:0 14px;margin-bottom:10px">
+    ${[
+      { act: 'snapNow', n: '立即创建云端快照', d: '当前版本留档，随时可回滚' },
+      { act: 'backupExport', n: '导出备份文件', d: '完整 JSON（含照片），可存网盘或本地' },
+      { act: 'backupImport', n: '导入备份文件', d: '从 JSON 还原整套数据' }
+    ].map((i, ix, arr) => `
+      <div class="row" style="justify-content:space-between;padding:11px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer" data-act="${i.act}">
+        <div><div style="font-size:12.5px;font-weight:600">${i.n}</div><div class="tiny" style="margin-top:2px">${i.d}</div></div>
+        <span style="color:var(--ink3);font-size:11.5px;font-weight:600">›</span>
+      </div>`).join('')}
+  </div>`;
+
+  const cloudCard = `
+  <div class="sec-title" style="margin-top:2px"><h3>云端历史版本</h3><span class="tiny">保留最近 ${SNAP.keep} 份</span></div>
+  <div class="card" style="padding:${cloud === null || !cloud.length ? '12px 14px' : '0 14px'}">
+    ${cloud === null ? '<div class="tiny">读取中…</div>'
+      : !cloud.length ? '<div class="tiny">暂无云端快照。每次云端写入前会自动留档（10 分钟节流），也可点「立即创建云端快照」。</div>'
+      : cloud.slice(0, 10).map((v, ix, arr) => `
+        <div class="row" style="justify-content:space-between;padding:10px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''}">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:650">${esc(fmtAt(v.at))} <span class="tiny" style="font-weight:400">rev ${v.rev}</span></div>
+            <div class="row" style="gap:4px;margin-top:4px;flex-wrap:wrap">${statChips(v.stats || {})}</div>
+            ${v.note ? `<div class="tiny" style="margin-top:3px">${esc(v.note)}${v.by ? ' · ' + esc(v.by) : ''}</div>` : ''}
+          </div>
+          <button class="btn btn-line btn-sm" style="flex:0 0 auto" data-act="snapRestoreAsk" data-src="cloud" data-id="${esc(v.id)}" data-at="${esc(fmtAt(v.at))}">恢复</button>
+        </div>`).join('')}
+  </div>`;
+
+  const histCard = `
+  <div class="sec-title"><h3>本机缓存版本</h3><span class="tiny">离线兜底</span></div>
+  <div class="card" style="padding:${hist.length ? '0 14px' : '12px 14px'}">
+    ${hist.length ? hist.map((v, ix, arr) => `
+      <div class="row" style="justify-content:space-between;padding:10px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:650">${esc(v.at)}${ix === 0 ? ' <span class="tag ok" style="font-size:9px">最新</span>' : ''}</div>
+          <div class="row" style="gap:4px;margin-top:4px;flex-wrap:wrap">${statChips(v.stats || dataStats(v.data || {}))}</div>
+        </div>
+        <button class="btn btn-line btn-sm" style="flex:0 0 auto" data-act="snapRestoreAsk" data-src="local" data-idx="${ix}" data-at="${esc(v.at)}">恢复</button>
+      </div>`).join('') : '<div class="tiny">暂无本机缓存版本</div>'}
+  </div>`;
+
+  return sheetWrap('数据保护', '自动留档 · 历史版本回滚 · 备份导出导入',
+    stat + acts + cloudCard + histCard,
+    `<button class="btn btn-pri" style="flex:1" data-act="sheetClose">完成</button>`);
+}
+function fmtAt(iso) {
+  const s = String(iso || '');
+  const t = new Date(s);
+  if (isNaN(t.getTime())) return s.replace('T', ' ').replace(/\..*/, '').replace(/Z$/, '');
+  const p = n => String(n).padStart(2, '0');
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;
+}
+function snapConfirmHTML() {
+  const s = S.sheet;
+  return sheetWrap('恢复历史版本', '当前数据会先自动留档，恢复后所有设备同步更新',
+    `<div class="card" style="padding:13px 14px">
+      <div class="row" style="justify-content:space-between"><div class="tiny">目标版本</div><b style="font-size:12px">${esc(s.restoreAt || '')}</b></div>
+      <div class="row" style="gap:5px;margin-top:9px;flex-wrap:wrap">${statChips(s.restoreStats || {})}</div>
+      <div class="tiny" style="margin-top:10px;line-height:1.7;color:var(--ink3)">
+        恢复会用该版本整体替换当前数据（账号、权限、车间房间、任务、发现项）。恢复前的当前数据会先写入云端快照，可再次回滚。
+      </div>
+    </div>`,
+    `<button class="btn btn-line" style="flex:0 0 96px" data-act="sheetClose">取消</button>
+     <button class="btn btn-pri" style="flex:1" data-act="snapRestoreDo">确认恢复</button>`);
+}
+function backupImportHTML() {
+  return sheetWrap('导入备份文件', '选择之前导出的 JSON 备份',
+    `<div class="card" style="padding:14px">
+      <div class="tiny" style="line-height:1.8;margin-bottom:12px">
+        导入会用备份文件整体替换当前数据。当前数据会先写入云端快照，若导入错误可回滚。
+      </div>
+      <label class="btn btn-line" style="display:block;text-align:center;cursor:pointer">
+        选择备份文件
+        <input type="file" accept=".json,application/json" data-import="1" hidden>
+      </label>
+    </div>`,
+    `<button class="btn btn-line" style="flex:1" data-act="sheetClose">取消</button>`);
+}
+function importConfirmHTML() {
+  const s = S.sheet;
+  const st = dataStats(s.importData || {});
+  const cur = dataStats(D());
+  return sheetWrap('确认导入', '导入后覆盖当前全部数据',
+    `<div class="card" style="padding:13px 14px">
+      <div class="tiny" style="margin-bottom:8px">备份内容</div>
+      <div class="row" style="gap:5px;flex-wrap:wrap">${statChips(st)}</div>
+      <div class="tiny" style="margin:12px 0 8px">当前数据</div>
+      <div class="row" style="gap:5px;flex-wrap:wrap">${statChips(cur)}</div>
+      <div class="tiny" style="margin-top:12px;line-height:1.7;color:var(--ink3)">导入前会自动为当前版本创建云端快照。</div>
+    </div>`,
+    `<button class="btn btn-line" style="flex:0 0 96px" data-act="sheetClose">取消</button>
+     <button class="btn btn-pri" style="flex:1" data-act="importDo">确认导入</button>`);
+}
+function dropWarnHTML() {
+  const s = S.sheet;
+  return sheetWrap('数据量异常减少', '为避免误删，请确认这次变更',
+    `<div class="card" style="padding:13px 14px">
+      ${(s.drops || []).map(d => `<div class="row" style="justify-content:space-between;padding:6px 0">
+        <span style="font-size:12.5px">${esc(d.label)}</span>
+        <b style="font-size:12.5px;color:var(--red)">${d.from} → ${d.to}</b>
+      </div>`).join('')}
+      <div class="tiny" style="margin-top:10px;line-height:1.7;color:var(--ink3)">
+        数据量比上一版明显减少，常见于误删或本机数据未同步完整。若这是你的预期操作可确认提交，否则请取消并先刷新页面。
+      </div>
+    </div>`,
+    `<button class="btn btn-line" style="flex:0 0 96px" data-act="dropCancel">取消</button>
+     <button class="btn btn-pri" style="flex:1;background:var(--red);border-color:var(--red)" data-act="dropConfirm">确认减少并提交</button>`);
+}
+
+/* 备份导出 / 导入 / 恢复执行 */
+function backupExport() {
+  const payload = { app: 'cleanroom-inspection', schema: 2, exportedAt: new Date().toISOString(), rev: CLOUD.rev, data: D() };
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  a.href = URL.createObjectURL(blob);
+  a.download = `巡检数据备份-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  toast('已导出备份文件');
+}
+function backupImportPick(file) {
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = ev => {
+    try {
+      const raw = JSON.parse(String(ev.target.result || ''));
+      const d = raw && raw.data && Array.isArray(raw.data.workshops) ? raw.data : raw;
+      if (!d || !Array.isArray(d.workshops) || !d.workshops.length) throw new Error('文件里没有车间数据');
+      openSheet({ type: 'importConfirm', importData: d });
+    } catch (e) {
+      toast('导入失败：' + (e.message || '文件无法解析'));
+    }
+  };
+  fr.readAsText(file);
+}
+function importDo() {
+  const s = S.sheet || {};
+  const data = s.importData;
+  if (!data) return;
+  snapWrite(CLOUD.rev, D(), '导入备份前自动备份');
+  CLOUD.dropAck = true;
+  applyCloudData(data);
+  (D().roleLog = D().roleLog || []).unshift({ at: stampNow(), by: (me() || {}).name || '', act: '导入备份', note: '从备份文件还原整套数据' });
+  closeSheet(); render();
+  if (CLOUD.on) cloudPush();
+  toast('已导入备份数据');
+}
+function snapRestoreDo() {
+  const s = S.sheet || {};
+  const finish = data => {
+    if (!data || !Array.isArray(data.workshops)) { toast('该版本内容不完整，无法恢复'); return; }
+    snapWrite(CLOUD.rev, D(), '恢复历史版本前自动备份');
+    CLOUD.dropAck = true;
+    applyCloudData(data);
+    (D().roleLog = D().roleLog || []).unshift({ at: stampNow(), by: (me() || {}).name || '', act: '恢复历史版本', note: `回滚到 ${s.restoreAt || ''}` });
+    closeSheet(); render();
+    if (CLOUD.on) cloudPush();
+    toast(`已恢复到 ${s.restoreAt || '所选版本'}`);
+  };
+  if (s.restoreSrc === 'local') {
+    const h = histList()[s.restoreIdx];
+    finish(h && h.data);
+    return;
+  }
+  snapGet(s.restoreId).then(doc => finish(doc && doc.data)).catch(() => toast('读取快照失败，请检查网络'));
+}
+function openDataProtect() {
+  if (!can('exportAll')) { toast('仅合规管理可访问数据保护'); return; }
+  openSheet({ type: 'dataProtect', snaps: null });
+  snapListCloud().then(list => {
+    if (S.sheet && S.sheet.type === 'dataProtect') { S.sheet.snaps = list; renderSheet(); }
+  }).catch(() => {
+    if (S.sheet && S.sheet.type === 'dataProtect') { S.sheet.snaps = []; renderSheet(); }
+  });
+}
+
 function dataMgrHTML() {
   const d = rangeDraft();
   const b = rangeBounds(d.range, d);
@@ -4664,6 +5109,9 @@ window.__t = {
   aiAnalyze, lineProfile, GMP_RULES, aiLineReport, renderAi, autoAssignOwner, aiDeptReport, findingOwners, DEPTS,
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSubmit, doFinishLogin,
   dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData, isSeedLike, localIsCustom, dataSig, seedSig, seed,
+  dataStats, histSave, histList, dropCheck, snapMaybe, snapWrite, snapListCloud, snapRestoreDo, openDataProtect,
+  snapGet, snapPruneCloud, fmtAt, backupImportPick,
+  dataProtectHTML, backupExport, importDo, SNAP, HIST_KEY, stampNow,
   applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel,
   restNeed, restToken, restLoadDb, restSaveDb, restAuthCall, restAuthRestore, restAuthClear, REST, cloudRetry, cloudFailReason
 };
