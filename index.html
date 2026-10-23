@@ -2561,22 +2561,31 @@ function renderMe() {
   </div>`;
 }
 
-/* 账号与角色分配卡片（巡检人 / 合规管理可见） */
+/* 账号与角色分配卡片（巡检人 / 合规管理可见）——默认折叠，按角色计数摘要 */
 function accountCardHTML() {
   const accs = D().accounts || [];
+  const open = !!S.sub.accOpen;
+  const cnt = {};
+  accs.forEach(u => { cnt[u.role] = (cnt[u.role] || 0) + 1; });
+  const chips = Object.keys(cnt).map(k => `<span class="tag ${k === 'compliance' ? 'info' : k === 'production' ? 'warn' : 'ok'}" style="font-size:10px">${ROLES[k].name} · ${cnt[k]}</span>`).join('');
   return `
-  <div class="sec-title"><h3>账号与角色分配</h3><span>${accs.length} 个账号</span></div>
+  <div class="sec-title"><h3>账号与角色分配</h3><span style="cursor:pointer;color:var(--pri);font-weight:600" data-act="accToggle">${open ? '收起 ∧' : '展开 ∨'}</span></div>
   <div class="card" style="padding:0 14px">
+    <div class="row" data-act="accToggle" style="gap:6px;padding:11px 0;cursor:pointer;flex-wrap:wrap;${accs.length ? '' : 'border-bottom:1px solid #F2F6F8'}">
+      ${chips || '<span class="tiny">暂无账号</span>'}
+      <span class="tiny" style="margin-left:auto;color:var(--pri)">${open ? '收起' : '共 ' + accs.length + ' 个'}</span>
+    </div>
+    ${open ? `
     ${accs.map((u, i, arr) => `
-      <div class="row" style="justify-content:space-between;padding:11px 0;${i < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''}">
-        <div style="flex:1;cursor:pointer" data-act="editAccount" data-emp="${u.emp}">
-          <div style="font-size:12.5px;font-weight:650">${esc(u.name)}
+      <div class="row" style="justify-content:space-between;padding:9px 0;${i < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''}">
+        <div style="flex:1;min-width:0;cursor:pointer" data-act="editAccount" data-emp="${u.emp}">
+          <div style="font-size:12.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.name)}
             <span class="tiny" style="margin-left:6px;font-weight:400">${esc(u.emp)}</span>
             ${u.emp === me().emp ? '<span class="tag pri" style="font-size:9px;margin-left:4px">我</span>' : ''}
           </div>
-          <div class="tiny" style="margin-top:2px">${u.login ? '登录名 ' + esc(u.login) : '未设置登录名（无法绑定云端权限）'}${u.shops && u.shops.length ? ' · 分管 ' + u.shops.map(id => (wsOf(id) || {}).name).filter(Boolean).join('、') : ''}</div>
+          <div class="tiny" style="margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.login ? esc(u.login) : '未设置登录名'}${u.shops && u.shops.length ? ' · 分管 ' + u.shops.map(id => (wsOf(id) || {}).name).filter(Boolean).join('、') : ''}</div>
         </div>
-        <span class="row" style="gap:6px">
+        <span class="row" style="gap:6px;flex:0 0 auto">
           <span class="tag ${u.role === 'compliance' ? 'info' : u.role === 'production' ? 'warn' : 'ok'}" style="font-size:10px">
             ${ROLES[u.role].name}</span>
           <span data-act="delAccount" data-emp="${u.emp}" style="font-size:11px;font-weight:600;color:var(--red);cursor:pointer;padding:2px 4px">删除</span>
@@ -2588,7 +2597,7 @@ function accountCardHTML() {
     </div>
     <div class="tiny" style="padding:0 0 12px;line-height:1.7;color:var(--ink3)">
       钉钉扫码登录的账号默认授予「预览」角色（只读查看数据）；「整改回复人」等其他角色由巡检人和合规管理在此单独设置，变更记入审计日志。
-    </div>
+    </div>` : `<div class="tiny" style="padding:0 0 12px;color:var(--ink3)">点击「展开」查看全部账号，可编辑角色、删除或新增</div>`}
   </div>`;
 }
 
@@ -3080,9 +3089,16 @@ function renderSheet() {
                 border-radius:50%;background:rgba(15,30,40,.72);color:#fff;font-size:11px;display:flex;
                 align-items:center;justify-content:center;cursor:pointer">×</span>
             </div>`).join('')}
-          ${d.photos.length < 3 ? `<label class="up">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          ${d.photos.length < 3 ? `
+          <label class="up" style="flex-direction:column;gap:3px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span style="font-size:9px;font-weight:600">拍照</span>
             <input type="file" accept="image/*" capture="environment" data-photo="1" hidden>
+          </label>
+          <label class="up" style="flex-direction:column;gap:3px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            <span style="font-size:9px;font-weight:600">相册</span>
+            <input type="file" accept="image/*" multiple data-photo="1" hidden>
           </label>` : ''}
         </div>
       </div>
@@ -3188,9 +3204,16 @@ function renderSheet() {
                 border-radius:50%;background:rgba(15,30,40,.72);color:#fff;font-size:11px;display:flex;
                 align-items:center;justify-content:center;cursor:pointer">×</span>
             </div>`).join('')}
-          ${(d.photos || []).length < 3 ? `<label class="up">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          ${(d.photos || []).length < 3 ? `
+          <label class="up" style="flex-direction:column;gap:3px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span style="font-size:9px;font-weight:600">拍照</span>
             <input type="file" accept="image/*" capture="environment" data-photo="1" hidden>
+          </label>
+          <label class="up" style="flex-direction:column;gap:3px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            <span style="font-size:9px;font-weight:600">相册</span>
+            <input type="file" accept="image/*" multiple data-photo="1" hidden>
           </label>` : ''}
         </div>
       </div>`,
@@ -3388,7 +3411,7 @@ function renderSheet() {
           该房间产生的问题经合规确认后，将自动分配给以上全部回复人；如需更换在此修改即可。
         </div>
       </div>` : ''}
-      ${s.mode === 'add' && s.label === '房间' ? `<div class="tiny" style="margin-top:8px">将添加到「${esc(wsOf(s.wsId).name)}」，最多 12 个房间</div>` : ''}`,
+      ${s.mode === 'add' && s.label === '房间' ? `<div class="tiny" style="margin-top:8px">将添加到「${esc(wsOf(s.wsId).name)}」，最多 20 个房间</div>` : ''}`,
       `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
        <button class="btn btn-pri" data-act="saveEntity">保存</button>`);
   }
@@ -3904,6 +3927,8 @@ function handleAction(act, t, d) {
     case 'help':
       openSheet({ type: 'help' });
       break;
+    case 'accToggle':
+      S.sub.accOpen = !S.sub.accOpen; render(); break;
     case 'roleLog':
       if (!can('manageRole')) { toast('无权查看'); break; }
       openSheet({ type: 'roleLog' });
@@ -3999,7 +4024,7 @@ function handleAction(act, t, d) {
         ]});
       } else {
         const w = wsOf(s.wsId);
-        if (w.rooms.length >= 12) { toast('单个车间最多 12 个房间'); break; }
+        if (w.rooms.length >= 20) { toast('单个车间最多 20 个房间'); break; }
         w.rooms.push({ id: uid('R'), code: dd.code.trim(), name: dd.name.trim(), replyOwners: (dd.replyOwners || []).slice(), replyOwner: (dd.replyOwners || []).join('、') });
       }
       persist(); closeSheet(); render();
@@ -4140,7 +4165,8 @@ document.addEventListener('change', e => {
   const file = e.target.closest('[data-photo]');
   if (file && file.files && file.files.length) {
     const s = S.sheet;
-    const files = Array.prototype.slice.call(file.files, 0, 3);
+    const room = Math.max(0, 3 - ((s && s.draft && s.draft.photos) || []).length);
+    const files = Array.prototype.slice.call(file.files, 0, room);
     let pending = files.length;
     files.forEach(fl => compress(fl, url => {
       if (s && s.draft && url) s.draft.photos.push(url);
