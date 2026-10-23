@@ -456,7 +456,8 @@ const DEFAULT_ACCOUNTS = [
 const INSPECTORS = ['张伟', '李静', '周敏'];
 /* 实时巡检人名单：优先取账号表中角色为「巡检人」的账号（含改名/新增），无则退回演示名单 */
 function inspectorNames() {
-  const list = (D().accounts || []).filter(a => a.role === 'inspector').map(a => a.name);
+  // 巡检人不限于「巡检人」角色：合规管理同样可被分配任务执行巡检
+  const list = (D().accounts || []).filter(a => a.role === 'inspector' || a.role === 'compliance').map(a => a.name);
   return list.length ? list : INSPECTORS.slice();
 }
 /* 出厂角色形象备份：退出登录时还原，避免云端账号名残留 */
@@ -474,10 +475,10 @@ const CAN = {
   withdraw:     { name: '撤回任务', roles: ['inspector', 'compliance'],
                   scope: (t) => S.role === 'compliance' || t.assignee === me().name || t.createdBy === me().name,
                   on: (t) => S.role === 'compliance' ? taskStatus(t) !== 'closed' : taskStatus(t) === 'pending' },
-  inspect:      { name: '执行巡检 / 登记发现项', roles: ['inspector'],
+  inspect:      { name: '执行巡检 / 登记发现项', roles: ['inspector', 'compliance'],
                   scope: (t) => t.assignee === me().name,
                   on: (t) => ['pending', 'doing'].indexOf(taskStatus(t)) >= 0 },
-  fixFinding:   { name: '修改被退回的发现项', roles: ['inspector'],
+  fixFinding:   { name: '修改被退回的发现项', roles: ['inspector', 'compliance'],
                   scope: (f) => f.foundBy === me().name,
                   on: (f) => f.status === 'returned' },
   confirmFind:  { name: '确认 / 退回发现项', roles: ['compliance'],
