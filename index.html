@@ -2258,6 +2258,7 @@ function renderMe() {
   <div class="sec-title"><h3>常用功能</h3><span></span></div>
   <div class="card" style="padding:0 14px">
     ${[
+      { act: 'help', n: '使用说明', d: '登录、巡检、确认整改、权限分配一站式指引', show: true },
       { act: 'newTask', n: '分配巡检任务', d: '指派给自己或组内同事，可改派 / 改期', show: S.role === 'inspector' },
       { act: 'goConfig', n: '车间与房间管理', d: `${D().workshops.length} 车间 · ${D().workshops.reduce((n, w) => n + w.rooms.length, 0)} 房间，可新增 / 编辑 / 删除`, show: can('manageData') },
       { act: 'goConfig', n: '巡检配置', d: `频率 ${D().settings.freq} 次/月 · 回复 ${D().settings.replyDays} 天`, show: can('configPolicy') },
@@ -3025,8 +3026,44 @@ function renderSheet() {
             </div>
             <div class="tiny" style="margin-top:3px;line-height:1.6">${esc(l.by)}：${esc(l.note)}</div>
           </div>`).join('')}
-      </div>` : `<div class="empty" style="padding:20px 0"><b>暂无变更记录</b>调整角色后会在这里留痕</div>`,
+      </div>`       : `<div class="empty" style="padding:20px 0"><b>暂无变更记录</b>调整角色后会在这里留痕</div>`,
       '<button class="btn btn-line" style="flex:1" data-act="sheetClose">关闭</button>');
+  }
+
+  else if (s.type === 'help') {
+    const rb = D().settings.replyDays;
+    const sec = (title, lines) => `
+      <div style="margin-bottom:12px">
+        <div style="font-size:12.5px;font-weight:700;color:var(--pri);margin-bottom:4px">${title}</div>
+        ${lines.map(l => `<div class="tiny" style="line-height:1.8">· ${l}</div>`).join('')}
+      </div>`;
+    html = sheetWrap('使用说明', '按角色划分的一站式操作指引',
+      `<div class="card" style="padding:14px 14px 6px">
+        ${sec('① 登录与角色', [
+          '底部「账号密码」登录（账号由腾讯云开发统一认证）；手机/邮箱验证码需管理员在云开发控制台开通短信服务',
+          '登录后角色由「账号权限绑定」自动决定，无法手动切换；未绑定的账号为只读预览',
+          '我的 → 常用功能 → 退出登录，可切换账号'
+        ])}
+        ${sec('② 巡检人', [
+          '任务页 →「+ 新建 / 干预巡检任务」分配任务（可指派给自己或同事，支持改派 / 改期 / 撤回）',
+          '进入车间逐房间检查，点「登记发现项」填写内容、拍照、选级别（重大 / 一般）',
+          '登记后等待合规管理确认；被退回时按意见补充后重新提交'
+        ])}
+        ${sec('③ 合规管理', [
+          '确认页处理待确认发现项：确认定级 / 退回补充，可干预任何巡检任务',
+          '配置页维护车间 / 房间主数据、巡检频率（当前 ' + D().settings.freq + ' 次/月）与回复期限（' + rb + ' 天）',
+          '账号与角色分配：新增账号需填写登录名（即 CloudBase 登录账号，1–64 位字母/数字/_.@+-），角色保存后即刻写入权限绑定'
+        ])}
+        ${sec('④ 整改回复人', [
+          '整改页在 ' + rb + ' 天内回复整改措施，手动填写责任人；全部回复后任务自动闭环'
+        ])}
+        ${sec('⑤ 数据与多设备', [
+          '数据云端实时共享：A 设备登记后 B 设备约 4 秒自动刷新',
+          '「我的」页可查看数据模式；显示「多人共享（云端实时同步）」即为已连接',
+          '导出：支持全量 Excel（发现项明细 + 任务汇总）或按日期区间导出 / 清理'
+        ])}
+      </div>`,
+      '<button class="btn btn-pri" style="flex:1" data-act="sheetClose">我知道了</button>');
   }
 
   else if (s.type === 'delAccount') {
@@ -3567,6 +3604,9 @@ function handleAction(act, t, d) {
       persist(); closeSheet(); render();
       break;
     }
+    case 'help':
+      openSheet({ type: 'help' });
+      break;
     case 'roleLog':
       if (!can('manageRole')) { toast('无权查看'); break; }
       openSheet({ type: 'roleLog' });
