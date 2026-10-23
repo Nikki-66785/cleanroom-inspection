@@ -2535,15 +2535,14 @@ function renderMe() {
       { act: 'dataMgr', n: '按日期导出 / 删除', d: '选择日期区间批量导出，或清理历史数据', show: can('exportAll') },
       { act: 'goAudit', n: '审计追踪', d: '角色变更、房间回复人调整、数据删除留痕', show: can('viewAudit') },
       { act: 'roleSheet', n: '切换角色', d: '巡检人 / 合规管理 / 整改回复人 / 预览', show: true },
-      { act: 'logout', n: '退出登录', d: authEnabled() && CLOUD.user ? `当前账号 ${loginLabel()}` : '未启用云端登录', show: authEnabled() && !!CLOUD.user },
-      { act: 'reset', n: '重置演示数据', d: '清空并恢复初始样本', show: true }
+      { act: 'logout', n: '退出登录', d: authEnabled() && CLOUD.user ? `当前账号 ${loginLabel()}` : '未启用云端登录', show: authEnabled() && !!CLOUD.user }
     ].filter(i => i.show).map((i, ix, arr) => `
       <div class="row" style="justify-content:space-between;padding:13px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer" data-act="${i.act}">
         <div>
           <div style="font-size:13px;font-weight:600">${i.n}</div>
           <div class="tiny" style="margin-top:2px">${i.d}</div>
         </div>
-        <span style="color:${i.act === 'reset' || i.act === 'logout' ? 'var(--red)' : 'var(--ink3)'};font-size:11.5px;font-weight:600">›</span>
+        <span style="color:${i.act === 'logout' ? 'var(--red)' : 'var(--ink3)'};font-size:11.5px;font-weight:600">›</span>
       </div>`).join('')}
   </div>
 
@@ -4096,12 +4095,6 @@ function handleAction(act, t, d) {
     case 'delConfirm':
       if (!can('exportAll')) { toast('仅合规管理可删除数据'); break; }
       doDeleteRange();
-      break;
-    case 'reset':
-      S.data = seed(); persist();
-      S.page = 'tasks'; S.sub = {}; S.filter = 'all';
-      closeSheet(); render();
-      toast('演示数据已重置');
       break;
   }
 }
