@@ -306,11 +306,7 @@ body{
   color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto}
 .login-title{font-size:16px;font-weight:700;text-align:center;margin-top:11px}
 .login-sub{font-size:11px;color:var(--ink3);text-align:center;margin-top:5px;line-height:1.6}
-.login-tabs{display:flex;gap:4px;background:#F1F5F7;border-radius:9px;padding:3px;margin:15px 0 13px}
-.login-tabs button{flex:1;border:none;background:transparent;font-family:inherit;font-size:11px;font-weight:600;
-  color:var(--ink2);padding:7px 2px;border-radius:7px;cursor:pointer;transition:all .15s}
-.login-tabs button.on{background:#fff;color:var(--pri);box-shadow:0 1px 4px rgba(15,30,40,.1)}
-.login-card .fld{margin-bottom:11px}
+.login-card .fld{margin-top:15px;margin-bottom:11px}
 .login-card .fld label{font-size:11.5px;font-weight:650;color:var(--ink2);display:block;margin-bottom:5px}
 .login-card .fld input{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 11px;
   font-size:13px;font-family:inherit;color:var(--ink);outline:none;transition:border-color .15s}
@@ -1004,10 +1000,10 @@ function seed() {
 /* ---------- 初始化 ---------- */
 /* ============================================================
    登录门禁（CloudBase 用户管理）
-   - 配置了 CLOUD_DB.env 时启用：未登录先显示登录页（手机验证码 / 邮箱验证码 / 用户名密码）
+   - 配置了 CLOUD_DB.env 时启用：未登录先显示登录页（账号密码登录）
    - 未配置 env（本地 file:// 或内网体验）时不拦截，沿用角色切换
    ============================================================ */
-const AUTH = { app: null, on: false, user: null, mode: 'phone', sending: false, info: null, err: '' };
+const AUTH = { app: null, on: false, user: null, mode: 'pwd', sending: false, info: null, err: '' };
 function authEnabled() { return !!CLOUD_DB.env && (!!window.cloudbase || restNeed()); }
 function authApp() {
   if (!AUTH.app && authEnabled()) AUTH.app = tcbApp();
@@ -1091,32 +1087,19 @@ const loginStateUser = ls => {
   return null;
 };
 function loginHTML() {
-  const m = AUTH.mode;
   return `
   <div class="login-mask">
     <div class="login-card">
       <div class="login-logo">净</div>
       <div class="login-title">洁净车间巡检系统</div>
       <div class="login-sub">请使用企业账号登录后使用</div>
-      <div class="login-tabs">
-        <button class="${m === 'phone' ? 'on' : ''}" data-act="loginMode" data-m="phone">手机验证码</button>
-        <button class="${m === 'email' ? 'on' : ''}" data-act="loginMode" data-m="email">邮箱验证码</button>
-        <button class="${m === 'pwd' ? 'on' : ''}" data-act="loginMode" data-m="pwd">账号密码</button>
-      </div>
-      ${m === 'pwd' ? `
-        <div class="fld"><label>账号</label>
-          <input type="text" data-lf="account" value="${esc(AUTH.info ? AUTH.info.account || '' : '')}" placeholder="用户名 / 邮箱 / 手机号" autocomplete="username"></div>
-        <div class="fld"><label>密码</label>
-          <input type="password" data-lf="password" placeholder="请输入密码" autocomplete="current-password"></div>` : `
-        <div class="fld"><label>${m === 'phone' ? '手机号' : '邮箱'}</label>
-          <input type="text" data-lf="account" value="${esc(AUTH.info ? AUTH.info.account || '' : '')}"
-            placeholder="${m === 'phone' ? '请输入手机号' : '请输入邮箱地址'}" autocomplete="username"></div>
-        ${AUTH.info && AUTH.info.sent ? `
-        <div class="fld"><label>验证码</label>
-          <input type="text" data-lf="code" placeholder="请输入验证码" maxlength="6" inputmode="numeric"></div>` : ''}`}
+      <div class="fld"><label>账号</label>
+        <input type="text" data-lf="account" value="${esc(AUTH.info ? AUTH.info.account || '' : '')}" placeholder="用户名 / 邮箱 / 手机号" autocomplete="username"></div>
+      <div class="fld"><label>密码</label>
+        <input type="password" data-lf="password" placeholder="请输入密码" autocomplete="current-password"></div>
       ${AUTH.err ? `<div class="login-err">${esc(AUTH.err)}</div>` : ''}
-      <button class="login-btn" data-act="${AUTH.info && (AUTH.info.sent || m === 'pwd') ? 'loginSubmit' : 'loginSend'}" ${AUTH.sending ? 'disabled' : ''}>
-        ${AUTH.sending ? '处理中…' : (m === 'pwd' ? '登录' : (AUTH.info && AUTH.info.sent ? '登录' : '获取验证码'))}</button>
+      <button class="login-btn" data-act="loginSubmit" ${AUTH.sending ? 'disabled' : ''}>
+        ${AUTH.sending ? '处理中…' : '登录'}</button>
       <div class="login-foot">登录即代表同意内部数据使用规范<br>
         ${window.cloudbase ? '账号由腾讯云开发用户管理统一认证' : '账号密码登录（直连网关通道）'}</div>
     </div>
@@ -1163,25 +1146,18 @@ function authGuard() {
             .then(s => (s && s.user) || null).catch(() => null));
   return probe.then(u => finish(u || null));
 }
-function loginSend() {
+function loginSubmit() {
   const acc = (document.querySelector('[data-lf="account"]') || {}).value;
+  const pwd = (document.querySelector('[data-lf="password"]') || {}).value;
   if (!String(acc || '').trim()) { AUTH.err = '请填写账号'; renderLogin(); return; }
-  AUTH.info = { account: acc.trim(), sent: false };
-  const auth = authObj();
-  const m = AUTH.mode;
-  // 先读输入值再重绘（renderLogin 会替换 DOM，重绘后读到的是空输入框）
-  const pwdUser = m === 'phone' ? phoneE164(acc.trim()) : acc.trim();
-  const pwdVal = (document.querySelector('[data-lf="password"]') || {}).value;
+  if (!String(pwd || '')) { AUTH.err = '请填写密码'; renderLogin(); return; }
+  const pwdUser = /^\+|\d{6,}/.test(acc.trim()) && !acc.includes('@') ? phoneE164(acc.trim()) : acc.trim();
+  AUTH.info = { account: acc.trim() };
   AUTH.sending = true; AUTH.err = ''; renderLogin();
-  // SDK 不可用 → REST 通道（仅支持账号密码；验证码通道依赖 SDK）
+  const auth = authObj();
+  // SDK 不可用 → REST 通道
   if (!auth) {
-    if (m !== 'pwd') {
-      AUTH.sending = false;
-      AUTH.err = '验证码登录需要加载云开发 SDK，请稍后重试或改用账号密码登录';
-      renderLogin();
-      return;
-    }
-    restAuthCall('signin', { username: pwdUser, password: pwdVal }).then(j => {
+    restAuthCall('signin', { username: pwdUser, password: pwd }).then(j => {
       const u = j.user || { username: pwdUser, name: pwdUser };
       AUTH.sending = false;
       doFinishLogin({ user: u });
@@ -1192,20 +1168,14 @@ function loginSend() {
     });
     return;
   }
-  const p = m === 'pwd'
-    ? (auth.signInWithPassword
-        ? auth.signInWithPassword({ username: pwdUser, password: pwdVal })            // v3 新版身份认证
-        : (auth.signInWithUsernameAndPassword
-            ? auth.signInWithUsernameAndPassword(pwdUser, pwdVal)                      // 经典 js-sdk
-            : auth.signIn({ username: pwdUser, password: pwdVal })))                   // 兜底
-    : (auth.signInWithOtp
-        ? auth.signInWithOtp(m === 'phone' ? { phone: acc.trim() } : { email: acc.trim() })   // v3
-        : auth.getVerification(m === 'phone' ? { phone_number: phoneE164(acc.trim()) } : { email: acc.trim() }));
+  const p = auth.signInWithPassword
+    ? auth.signInWithPassword({ username: pwdUser, password: pwd })            // v3 新版身份认证
+    : (auth.signInWithUsernameAndPassword
+        ? auth.signInWithUsernameAndPassword(pwdUser, pwd)                      // 经典 js-sdk
+        : auth.signIn({ username: pwdUser, password: pwd }));                   // 兜底
   p.then(r => {
-    if (r && r.error) { AUTH.err = fmtAuthErr(r.error, m === 'pwd' ? '登录失败，请核对账号密码' : '发送失败，请稍后重试'); return; }
-    if (m === 'pwd') return doFinishLogin(r);
-    if (r && r.data && typeof r.data.verifyOtp === 'function') { AUTH.info.verify = r.data; AUTH.info.sent = true; }  // v3
-    else { AUTH.info.verify = r; AUTH.info.sent = true; }                                                              // 旧版 { verification_id, is_user }
+    if (r && r.error) { AUTH.err = fmtAuthErr(r.error, '登录失败，请核对账号密码'); return; }
+    return doFinishLogin(r);
   }).catch(e => { console.error('[登录] 完整错误：', e); AUTH.err = fmtAuthErr(e, '登录失败，请稍后重试'); })
     .finally(() => { AUTH.sending = false; renderLogin(); });
 }
@@ -1216,53 +1186,6 @@ function doFinishLogin(ls) {
   AUTH.user = u; AUTH.on = false;
   renderLogin();
   afterLogin(u);
-}
-function loginSubmit() {
-  const code = (document.querySelector('[data-lf="code"]') || {}).value;
-  if (!String(code || '').trim()) { AUTH.err = '请输入验证码'; renderLogin(); return; }
-  const info = AUTH.info || {};
-  if (!info.verify || !info.verify.verification_id) { AUTH.err = '请先获取验证码'; renderLogin(); return; }
-  AUTH.sending = true; AUTH.err = ''; renderLogin();
-  const auth = authObj();
-  const codeStr = String(code).trim();
-  const isPhone = AUTH.mode === 'phone';
-  const acc = info.account;
-  let check;
-  if (info.verify && typeof info.verify.verifyOtp === 'function') {
-    // v3：发码时返回的 verifyOtp 闭包
-    check = Promise.resolve(info.verify.verifyOtp({ token: codeStr })).then(r => {
-      if (r && r.error) throw new Error((r.error.message || '验证码错误') + (r.error.code ? `（${r.error.code}）` : ''));
-      return r;
-    });
-  } else if (info.verify && info.verify.verification_id) {
-    check = auth.verify({
-      verification_id: info.verify.verification_id,
-      verification_code: codeStr
-    }).then(vt => {
-    // 已注册用户：验证码直接登录；新用户：验证码自动注册
-    const token = vt && vt.verification_token;
-    if (info.verify.is_user) {
-      return isPhone
-        ? auth.signInWithSms({ verificationInfo: info.verify, verificationCode: codeStr, phoneNum: phoneE164(acc) })
-        : auth.signInWithEmail({ verificationInfo: info.verify, verificationCode: codeStr, email: acc });
-    }
-    const randPwd = 'Cbi' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10) + '7x';
-    const autoName = isPhone ? ('u' + acc.replace(/\D/g, '').slice(-8)) : ('u' + acc.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16));
-    return auth.signUp({
-      ...(isPhone ? { phone_number: phoneE164(acc) } : { email: acc }),
-      verification_code: codeStr,
-      ...(token ? { verification_token: token } : {}),
-      username: autoName,
-      name: autoName,
-      password: randPwd
-    }).then(ls => ls || (auth.signInWithUsernameAndPassword
-      ? auth.signInWithUsernameAndPassword(isPhone ? phoneE164(acc) : acc, randPwd)
-      : auth.signIn({ username: isPhone ? phoneE164(acc) : acc, password: randPwd })));
-    });
-  }
-  check.then(ls => doFinishLogin(ls))
-    .catch(e => { console.error('[登录-验证码] 完整错误：', e); AUTH.err = fmtAuthErr(e, '验证失败，请核对验证码'); })
-    .finally(() => { AUTH.sending = false; renderLogin(); });
 }
 /* 把 CloudBase 登录身份（用户名 / 邮箱 / 手机号）匹配到系统角色绑定表；未绑定 → 只读预览 */
 function applyRoleBinding(u) {
@@ -3493,7 +3416,7 @@ function renderSheet() {
     html = sheetWrap('使用说明', '按角色划分的一站式操作指引',
       `<div class="card" style="padding:14px 14px 6px">
         ${sec('① 登录与角色', [
-          '底部「账号密码」登录（账号由腾讯云开发统一认证）；手机/邮箱验证码需管理员在云开发控制台开通短信服务',
+          '使用「账号密码」方式登录（账号由腾讯云开发统一认证）',
           '登录后角色由「账号权限绑定」自动决定，无法手动切换；未绑定的账号为只读预览',
           '我的 → 常用功能 → 退出登录，可切换账号'
         ])}
@@ -3762,12 +3685,6 @@ function handleAction(act, t, d) {
     case 'fdetail': S.sub.findId = t.dataset.id; S.sub.from = S.page; S.page = 'fdetail'; render(); break;
     case 'filter': S.filter = t.dataset.k; render(); break;
 
-    case 'loginMode':
-      AUTH.mode = t.dataset.m; AUTH.err = '';
-      AUTH.info = null;
-      renderLogin();
-      break;
-    case 'loginSend': loginSend(); break;
     case 'loginSubmit': loginSubmit(); break;
     case 'roleSheet':
       openSheet({ type: 'role' }); break;
@@ -4706,7 +4623,7 @@ window.__t = {
   rangeBounds, rangeData, rangeLabel, deleteImpact, doDeleteRange, exportExcel, RANGES,
   doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll,
   aiAnalyze, lineProfile, GMP_RULES, aiLineReport, renderAi, autoAssignOwner, aiDeptReport, findingOwners, DEPTS,
-  CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSend, loginSubmit, doFinishLogin,
+  CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSubmit, doFinishLogin,
   dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData,
   applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel,
   restNeed, restToken, restLoadDb, restSaveDb, restAuthCall, restAuthRestore, restAuthClear, REST, cloudRetry, cloudFailReason
