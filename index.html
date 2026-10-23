@@ -1228,14 +1228,15 @@ function afterLogin(u, quiet) {
     id: u.id || u.uid || (u.user_metadata && u.user_metadata.id) || '',
     username: u.username || (u.user_metadata && u.user_metadata.username) || '',
     name: u.name || (u.user_metadata && u.user_metadata.name) || '',
+    nick: u.nickname || u.nick_name || (u.user_metadata && (u.user_metadata.nickname || u.user_metadata.nick_name)) || '',
     phone: u.phone || (u.user_metadata && u.user_metadata.phone) || '',
     email: u.email || (u.user_metadata && u.user_metadata.email) || ''
   };
   // 权限绑定：按云端绑定表确定角色，未绑定账号为只读预览
   const roleChanged = S.role !== applyRoleBinding(u);
   S.role = applyRoleBinding(u);
-  // 身份统一：显示名 = 云端登录账号（不再是演示人物），并覆盖工号为账号信息
-  const display = CLOUD.user.username || CLOUD.user.name || CLOUD.user.email || CLOUD.user.phone || '登录用户';
+  // 身份统一：显示名优先取 CloudBase 账号的名称/昵称设置，未设置时退回登录名
+  const display = CLOUD.user.name || CLOUD.user.nick || CLOUD.user.username || CLOUD.user.email || CLOUD.user.phone || '登录用户';
   STAFF[S.role] = Object.assign({}, STAFF0[S.role] || STAFF[S.role], {
     name: display, emp: '云端账号'
   });
