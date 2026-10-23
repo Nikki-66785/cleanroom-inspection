@@ -38,10 +38,6 @@ body{
   .nav-in{padding:0 18px}
   .sheet-pan{max-width:640px}
 }
-.statusbar{flex:0 0 34px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 22px;font-size:12px;font-weight:600;background:#fff;letter-spacing:.3px}
-.statusbar .sb-r{display:flex;align-items:center;gap:5px}
-.statusbar svg{display:block}
 #nav{flex:0 0 auto;background:#fff;border-bottom:1px solid var(--line)}
 .nav-in{height:46px;display:flex;align-items:center;padding:0 10px;gap:6px}
 .nav-title{font-size:16px;font-weight:650;flex:1;text-align:center;
@@ -333,14 +329,6 @@ body{
 </head>
 <body data-page-node-id="YqYjSoj4jINAkxzZdu9YVW">
 <div class="phone" id="phone" data-page-node-id="SLPXUsXPam4yIfI7nIGFfr">
-  <div class="statusbar" data-page-node-id="apZx4FAfW2JmFV1JtIXNmY">
-    <span id="sb-time" data-page-node-id="I9A1BPdEKL9AcjdKZPcjOm">9:41</span>
-    <div class="sb-r" data-page-node-id="VQMjxYb452KmqXTyat4KYZ">
-      <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor" data-page-node-id="onzq6AMOmn8gFokgI6YqZT"><rect x="0" y="7" width="2.6" height="4" rx=".8" data-page-node-id="fn7sY8MNFyLplIiPRqnqdT"/><rect x="4" y="5" width="2.6" height="6" rx=".8" data-page-node-id="5u165Jpx9GHCBp7mRd086z"/><rect x="8" y="2.5" width="2.6" height="8.5" rx=".8" data-page-node-id="rR5spJjLMxF2neFY4ako65"/><rect x="12" y="0" width="2.6" height="11" rx=".8" opacity=".35" data-page-node-id="CHBrsEMwAr4PyGCxCtaRhT"/></svg>
-      <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor" data-page-node-id="i7PptAZGhhsEJBmDTJWrN9"><path d="M7.5 9.6a1.1 1.1 0 100-2.2 1.1 1.1 0 000 2.2zM7.5 5.2c1.1 0 2.1.4 2.9 1.1l1-1.1a5.9 5.9 0 00-7.8 0l1 1.1a4.3 4.3 0 012.9-1.1zM7.5 1.4c2.1 0 4 .8 5.5 2.1l1-1.1A9.4 9.4 0 007.5 0C5 0 2.7.9 1 2.4l1 1.1a8 8 0 015.5-2.1z" data-page-node-id="uYF6pQ9mKcsyeHI0n48eKv"/></svg>
-      <svg width="22" height="11" viewBox="0 0 22 11" fill="none" data-page-node-id="JoTWjCRdfTSaoFT3wU774j"><rect x=".5" y=".5" width="18" height="10" rx="2.6" stroke="currentColor" opacity=".4" data-page-node-id="DZkLCaCMHpKmulsD7PO8Dv"/><rect x="1.8" y="1.8" width="13.5" height="7.4" rx="1.6" fill="currentColor" data-page-node-id="YTOzUxvMmkXeUAVLtiIeKb"/><path d="M20 3.6v3.8c.9-.3 1.4-1 1.4-1.9S20.9 3.9 20 3.6z" fill="currentColor" opacity=".4" data-page-node-id="YNupE0vpq8RzCbbDNcwqja"/></svg>
-    </div>
-  </div>
   <div id="nav" data-page-node-id="pXx6gHpTjlwTCbcDRvjhXp"></div>
   <div id="view" data-page-node-id="JdPQyLx829g5YMefCoG0yS"></div>
   <div id="tabbar" data-page-node-id="5uq1k3ieSWKaPZI7anCVaY"></div>
@@ -1330,7 +1318,6 @@ function boot() {
   // 账号表迁移：清 dept、补登录名、迁移旧绑定键
   migrateAccounts(S.data);
   if (!stored) persist();
-  el('sb-time').textContent = timeStr(new Date());
   render();
   // 云端同步：优先文档型数据库 → 同步服务 → 本地模式
   cloudInit().then(on => { if (on) render(); });
