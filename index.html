@@ -421,15 +421,49 @@ const STAFF = {
   preview: { name: '访客', emp: 'EMP-0000', shops: [] }
 };
 
+/* 登录名归一化与校验：允许字母/数字/下划线/点/连字符/@/+（兼容邮箱形式），长度 1–64 */
+const LOGIN_RE = /^[A-Za-z0-9_.@+-]{1,64}$/;
+const normLogin = v => String(v == null ? '' : v).trim().toLowerCase();
+
+/* 账号表迁移（幂等）：兼容 v1 的 dept 字段与「按姓名绑定」的旧数据，
+   为老账号补登录名，并把中文姓名键的绑定迁移到登录名键 */
+const LEGACY_LOGIN = { '张伟': 'zhangwei', '李静': 'lijing', '周敏': 'zhoumin', '陈晓': 'chenxiao',
+  '赵磊': 'zhaolei', '王强': 'wangqiang', '刘洋': 'liuyang' };
+function migrateAccounts(data) {
+  const accs = data.accounts || [];
+  const rb = data.roleBindings || (data.roleBindings = {});
+  accs.forEach(a => {
+    delete a.dept;
+    // 补登录名：优先沿用同名种子账号的登录名
+    if (!a.login) {
+      const same = DEFAULT_ACCOUNTS.find(x => x.name === a.name);
+      const guess = (same && same.login) || LEGACY_LOGIN[a.name] || '';
+      if (guess) a.login = normLogin(guess);
+    }
+    // 旧绑定键（按姓名写入）→ 迁移到登录名键
+    const oldKey = normLogin(a.name);
+    if (a.login && oldKey && oldKey !== a.login && rb[oldKey]) {
+      if (!rb[a.login]) rb[a.login] = rb[oldKey];
+      delete rb[oldKey];
+    }
+  });
+  // 清理失效绑定：既不是登录名也不对应任何账号的键（保留手填的登录名绑定）
+  Object.keys(rb).forEach(k => {
+    if (!ROLES[rb[k]]) { delete rb[k]; return; }
+    if (normLogin(k) !== k) { rb[normLogin(k)] = rb[k]; delete rb[k]; }
+  });
+  return data;
+}
+
 /* ---------- 系统账号（可被授予角色，默认「预览」） ---------- */
 const DEFAULT_ACCOUNTS = [
-  { emp: 'DD-10231', name: '张伟', role: 'inspector', shops: [], loginAt: '2026-10-01 08:12' },
-  { emp: 'DD-10488', name: '李静', role: 'inspector', shops: [], loginAt: '2026-10-02 09:03' },
-  { emp: 'DD-10502', name: '周敏', role: 'inspector', shops: [], loginAt: '2026-10-03 08:47' },
-  { emp: 'DD-10666', name: '陈晓', role: 'compliance', shops: [], loginAt: '2026-10-01 08:05' },
-  { emp: 'DD-10777', name: '赵磊', role: 'compliance', shops: [], loginAt: '2026-10-06 10:20' },
-  { emp: 'DD-20112', name: '王强', role: 'production', shops: ['W3', 'W7'], loginAt: '2026-10-02 07:58' },
-  { emp: 'DD-20345', name: '刘洋', role: 'production', shops: ['W1', 'W2'], loginAt: '2026-10-08 08:31' }
+  { emp: 'DD-10231', name: '张伟', login: 'zhangwei', role: 'inspector', shops: [], loginAt: '2026-10-01 08:12' },
+  { emp: 'DD-10488', name: '李静', login: 'lijing', role: 'inspector', shops: [], loginAt: '2026-10-02 09:03' },
+  { emp: 'DD-10502', name: '周敏', login: 'zhoumin', role: 'inspector', shops: [], loginAt: '2026-10-03 08:47' },
+  { emp: 'DD-10666', name: '陈晓', login: 'chenxiao', role: 'compliance', shops: [], loginAt: '2026-10-01 08:05' },
+  { emp: 'DD-10777', name: '赵磊', login: 'zhaolei', role: 'compliance', shops: [], loginAt: '2026-10-06 10:20' },
+  { emp: 'DD-20112', name: '王强', login: 'wangqiang', role: 'production', shops: ['W3', 'W7'], loginAt: '2026-10-02 07:58' },
+  { emp: 'DD-20345', name: '刘洋', login: 'liuyang', role: 'production', shops: ['W1', 'W2'], loginAt: '2026-10-08 08:31' }
 ];
 const INSPECTORS = ['张伟', '李静', '周敏'];
 /* 出厂角色形象备份：退出登录时还原，避免云端账号名残留 */
@@ -782,8 +816,8 @@ function applyCloudData(data) {
   if (!S.data.roleBindings) S.data.roleBindings = { 'shunchao_zhang': 'compliance' };
   if (!S.data.roleLog) S.data.roleLog = [];
   if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
-  // 部门字段已废弃：清除云端旧数据中的 dept
-  (S.data.accounts || []).forEach(a => { delete a.dept; });
+  // 账号表迁移：清 dept、补登录名、迁移旧绑定键
+  migrateAccounts(S.data);
   try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (e) { /* 本地缓存失败可忽略 */ }
 }
 
@@ -1293,8 +1327,8 @@ function boot() {
   if (!S.data.roleBindings) S.data.roleBindings = { 'shunchao_zhang': 'compliance' };
   if (!S.data.roleLog) S.data.roleLog = [];
   if (!S.data.drafts) S.data.drafts = { find: null, reply: {} };
-  // 部门字段已废弃：清除旧数据（本地/云端）中的 dept
-  (S.data.accounts || []).forEach(a => { delete a.dept; });
+  // 账号表迁移：清 dept、补登录名、迁移旧绑定键
+  migrateAccounts(S.data);
   if (!stored) persist();
   el('sb-time').textContent = timeStr(new Date());
   render();
@@ -2279,7 +2313,7 @@ function accountCardHTML() {
             <span class="tiny" style="margin-left:6px;font-weight:400">${esc(u.emp)}</span>
             ${u.emp === me().emp ? '<span class="tag pri" style="font-size:9px;margin-left:4px">我</span>' : ''}
           </div>
-          <div class="tiny" style="margin-top:2px">${u.shops && u.shops.length ? ' · 分管 ' + u.shops.map(id => (wsOf(id) || {}).name).filter(Boolean).join('、') : ''}</div>
+          <div class="tiny" style="margin-top:2px">${u.login ? '登录名 ' + esc(u.login) : '未设置登录名（无法绑定云端权限）'}${u.shops && u.shops.length ? ' · 分管 ' + u.shops.map(id => (wsOf(id) || {}).name).filter(Boolean).join('、') : ''}</div>
         </div>
         <span class="row" style="gap:6px">
           <span class="tag ${u.role === 'compliance' ? 'info' : u.role === 'production' ? 'warn' : 'ok'}" style="font-size:10px">
@@ -2374,10 +2408,11 @@ function renderConfig() {
   <div class="card" style="padding:4px 14px">
     ${Object.keys(D().roleBindings || {}).length ? Object.keys(D().roleBindings).map(k => {
       const rk = D().roleBindings[k];
+      const owner = (D().accounts || []).find(a => normLogin(a.login) === normLogin(k));
       return `
       <div class="cfg-row">
         <div>
-          <div style="font-size:13px;font-weight:600;word-break:break-all">${esc(k)}</div>
+          <div style="font-size:13px;font-weight:600;word-break:break-all">${esc(k)}${owner ? '<span class="tiny" style="margin-left:6px;font-weight:400">' + esc(owner.name) + ' · ' + esc(owner.emp) + '</span>' : ''}</div>
           <div class="tiny" style="margin-top:2px">${ROLES[rk] ? ROLES[rk].name : '未知角色'} · 未绑定账号登录后为只读预览</div>
         </div>
         <div class="row" style="gap:6px">
@@ -2952,6 +2987,11 @@ function renderSheet() {
         <input type="text" data-f="name" value="${esc(d.name)}" placeholder="钉钉通讯录姓名" maxlength="10">
       </div>
       <div class="fld">
+        <label>登录名（必填，用于绑定 CloudBase 登录账号）</label>
+        <input type="text" data-f="login" value="${esc(d.login || '')}" placeholder="如：shunchao_zhang" maxlength="64"
+          autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="fld">
         <label>钉钉工号</label>
         <input type="text" data-f="emp" value="${esc(d.emp)}" placeholder="如：DD-30921">
       </div>` : ''}
@@ -3450,12 +3490,12 @@ function handleAction(act, t, d) {
       const u = (D().accounts || []).find(x => x.emp === t.dataset.emp);
       if (!u) break;
       openSheet({ type: 'account', mode: 'edit', emp: u.emp,
-        draft: { name: u.name, emp: u.emp, role: u.role, shops: (u.shops || []).slice() } });
+        draft: { name: u.name, login: u.login || '', emp: u.emp, role: u.role, shops: (u.shops || []).slice() } });
       break;
     }
     case 'addAccount':
       if (!can('manageRole')) { toast('当前角色无权新增账号'); break; }
-      openSheet({ type: 'account', mode: 'add', draft: { name: '', emp: '', role: DEFAULT_ROLE, shops: [] } });
+      openSheet({ type: 'account', mode: 'add', draft: { name: '', emp: '', login: '', role: DEFAULT_ROLE, shops: [] } });
       break;
     case 'delAccount': {
       if (!can('manageRole')) { toast('当前角色无权删除账号'); break; }
@@ -3475,7 +3515,7 @@ function handleAction(act, t, d) {
       if (!u) { closeSheet(); break; }
       D().accounts = D().accounts.filter(x => x.emp !== emp);
       // 同步清理该账号的登录绑定（按姓名=登录名匹配），删除后重新登录为只读预览
-      const bkDel = String(u.name || '').trim().toLowerCase();
+      const bkDel = normLogin(u.login);
       if (bkDel && D().roleBindings && D().roleBindings[bkDel]) delete D().roleBindings[bkDel];
       D().roleLog.push({ at: `${todayStr()} ${timeStr(new Date())}`, by: me().name, who: u.name,
         note: `删除账号 ${emp}（原角色 ${ROLES[u.role].name}）` });
@@ -3497,14 +3537,18 @@ function handleAction(act, t, d) {
       if (!String(dd.name || '').trim()) { toast('请填写姓名'); break; }
       const at = `${todayStr()} ${timeStr(new Date())}`;
       if (s.mode === 'add') {
+        const login = normLogin(dd.login);
+        if (!login) { toast('请填写登录名（CloudBase 登录账号）'); break; }
+        if (!LOGIN_RE.test(login)) { toast('登录名只能含字母/数字/_.@-，长度 1–64 位'); break; }
+        if (D().accounts.some(x => normLogin(x.login) === login)) { toast('登录名已被其他账号占用'); break; }
         const emp = String(dd.emp || '').trim() || 'DD-' + Date.now().toString().slice(-5);
         if (D().accounts.some(x => x.emp === emp)) { toast('工号已存在'); break; }
-        D().accounts.push({ emp, name: dd.name.trim(), role: dd.role, shops: dd.shops || [], loginAt: at });
-        // 同步真实权限绑定（云端登录按 roleBindings 判定）
-        const bkNew = dd.name.trim().toLowerCase();
+        D().accounts.push({ emp, name: dd.name.trim(), login, role: dd.role, shops: dd.shops || [], loginAt: at });
+        // 同步真实权限绑定（云端登录按 roleBindings 判定，键为登录名）
         D().roleBindings = D().roleBindings || {};
-        D().roleBindings[bkNew] = dd.role;
-        D().roleLog.push({ at, by: me().name, who: dd.name.trim(), note: `新增账号，角色 ${ROLES[dd.role].name}` });
+        D().roleBindings[login] = dd.role;
+        D().roleLog.push({ at, by: me().name, who: dd.name.trim(),
+          note: `新增账号 ${login}，角色 ${ROLES[dd.role].name}` });
         toast('账号已创建：' + dd.name.trim() + '（' + ROLES[dd.role].name + '）');
       } else {
         const u = D().accounts.find(x => x.emp === s.emp);
@@ -3513,9 +3557,14 @@ function handleAction(act, t, d) {
         if (before === dd.role && !shopChg) { closeSheet(); toast('未做任何调整'); break; }
         u.role = dd.role;
         u.shops = dd.shops || [];
-        // 同步真实权限绑定（云端登录按 roleBindings 判定）
-        const bk = String(u.name || '').trim().toLowerCase();
-        if (bk) { D().roleBindings = D().roleBindings || {}; D().roleBindings[bk] = dd.role; }
+        // 同步真实权限绑定（键为登录名；一个账号只保留一条有效绑定）
+        if (u.login) {
+          D().roleBindings = D().roleBindings || {};
+          // 清掉历史遗留的按姓名/中文名写入的错误键
+          const oldName = String(u.name || '').trim().toLowerCase();
+          if (oldName && oldName !== u.login && D().roleBindings[oldName]) delete D().roleBindings[oldName];
+          D().roleBindings[u.login] = dd.role;
+        }
         const note = before !== dd.role
           ? `角色 ${ROLES[before].name} → ${ROLES[dd.role].name}${shopChg ? '，分管车间已更新' : ''}`
           : '分管车间已更新';
