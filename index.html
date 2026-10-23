@@ -786,6 +786,13 @@ function tryDbBackend() {
       // 数据库尚无数据 → 用种子数据初始化
       return cloudPush().then(() => { CLOUD.timer = setInterval(cloudPoll, 4000); return true; });
     }
+    if (isSeedLike(j.data) && localIsCustom()) {
+      // 云端只剩初始数据、本机有真实数据 → 回写本机，避免真实数据被种子覆盖
+      CLOUD.guard = true;
+      cloudPush();
+      CLOUD.timer = setInterval(cloudPoll, 4000);
+      return true;
+    }
     applyCloudData(j.data);
     CLOUD.timer = setInterval(cloudPoll, 4000);
     return true;
@@ -806,6 +813,32 @@ function tryHttpBackend() {
     })
     .catch(() => false);
 }
+/* 防覆盖护栏：云端若只剩初始种子数据（例如被清库/被新设备初始化），
+   而本机还保有真实数据，则拒绝用种子覆盖本机，改为把本机数据回写云端。 */
+let SEED_SIG = null;
+function seedSig() {
+  if (!SEED_SIG) {
+    const s = seed();
+    SEED_SIG = {
+      ws: s.workshops.map(w => w.name + '|' + (w.rooms || []).map(r => r.name).join(',')).join(';'),
+      acc: (s.accounts || []).map(a => a.login).join(',')
+    };
+  }
+  return SEED_SIG;
+}
+function dataSig(d) {
+  if (!d || !Array.isArray(d.workshops)) return '';
+  return {
+    ws: d.workshops.map(w => w.name + '|' + (w.rooms || []).map(r => r.name).join(',')).join(';'),
+    acc: (d.accounts || []).map(a => a.login).join(',')
+  };
+}
+function isSeedLike(d) {
+  const a = dataSig(d), b = seedSig();
+  return !!a && a.ws === b.ws && a.acc === b.acc;
+}
+function localIsCustom() { return !isSeedLike(D()); }
+
 function applyCloudData(data) {
   S.data = data;
   if (!S.data.accounts) S.data.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
@@ -847,6 +880,12 @@ function cloudPoll() {
     : fetch('/api/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status));
   pull.then(j => {
     if (j && typeof j.rev === 'number' && j.rev !== CLOUD.rev && j.data) {
+      if (isSeedLike(j.data) && localIsCustom()) {   // 云端被初始数据覆盖 → 拒绝覆盖，反向回写
+        CLOUD.rev = j.rev;
+        CLOUD.guard = true;
+        cloudPush();
+        return;
+      }
       CLOUD.rev = j.rev; applyCloudData(j.data);
       render();
     }
@@ -4624,7 +4663,7 @@ window.__t = {
   doReply, renderAudit, ROLES, CAN, DEFAULT_ACCOUNTS, CATEGORIES, saveFinding, CLOUD, cloudInit, cloudPush, cloudPoll,
   aiAnalyze, lineProfile, GMP_RULES, aiLineReport, renderAi, autoAssignOwner, aiDeptReport, findingOwners, DEPTS,
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSubmit, doFinishLogin,
-  dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData,
+  dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData, isSeedLike, localIsCustom, dataSig, seedSig, seed,
   applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel,
   restNeed, restToken, restLoadDb, restSaveDb, restAuthCall, restAuthRestore, restAuthClear, REST, cloudRetry, cloudFailReason
 };
