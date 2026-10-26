@@ -1008,6 +1008,88 @@ function applyCloudData(data) {
   try { CLOUD.base = JSON.parse(JSON.stringify(S.data)); } catch (e) { CLOUD.base = null; }
 }
 
+/* ---------- 多端字段级合并 ----------
+   以 CLOUD.base（双方共同的上一版本）为基准合并远端与本机：
+   集合按 id 并集——一侧新增→采纳、一侧删除→尊重删除、双方都改→逐字段取与基准不同的一侧，
+   双方都改且不同→远端优先；roleLog/deleteLog 等流水做并集追加。 */
+function pickF(b, l, r) {
+  if (l === r) return l;
+  let bl, ll, rl;
+  try { bl = JSON.stringify(b); ll = JSON.stringify(l); rl = JSON.stringify(r); } catch (e) { return r; }
+  if (ll === bl) return r;
+  if (rl === bl) return l;
+  return r;
+}
+function mergeColl(bArr, lArr, rArr, idOf) {
+  const B = {}, L = {}, R = {};
+  (bArr || []).forEach(x => { B[idOf(x)] = x; });
+  (lArr || []).forEach(x => { L[idOf(x)] = x; });
+  (rArr || []).forEach(x => { R[idOf(x)] = x; });
+  const out = [];
+  (rArr || []).forEach(r => {
+    const id = idOf(r);
+    if (!(id in L)) { if (!(id in B)) out.push(r); return; }   // 本机没有：基准也没有→远端新增；基准有→本机已删除
+    if (!(id in B)) { out.push(R[id]); return; }               // 双方都有、基准没有 → 同名新增，取远端版
+    const l = L[id], b = B[id];
+    if (l && typeof l === 'object' && r && typeof r === 'object') {
+      const m = {};
+      Object.keys(r).forEach(k => { m[k] = pickF(b[k], l[k], r[k]); });
+      Object.keys(l).forEach(k => { if (!(k in m)) m[k] = pickF(b[k], l[k], undefined); });
+      out.push(m);
+    } else out.push(pickF(b, l, r));
+  });
+  (lArr || []).forEach(l => {
+    const id = idOf(l);
+    if (id in R || id in B) return;                            // 远端已有/基准有但远端删了
+    out.push(l);                                               // 本机新增
+  });
+  return out;
+}
+function mergeCloudData(base, local, remote) {
+  const m = JSON.parse(JSON.stringify(remote));
+  // 车间：外壳逐字段合并，房间列表再按 id 细粒度合并
+  m.workshops = mergeColl(base && base.workshops, local.workshops || [], remote.workshops || [], w => w.id)
+    .map(w => {
+      const b = (base && base.workshops || []).find(x => x.id === w.id);
+      const l = (local.workshops || []).find(x => x.id === w.id);
+      const r = (remote.workshops || []).find(x => x.id === w.id);
+      if (l && r) w.rooms = mergeColl(b && b.rooms, l.rooms || [], r.rooms || [], rm => rm.id);
+      return w;
+    });
+  m.accounts = mergeColl(base && base.accounts, local.accounts || [], remote.accounts || [], a => a.login || a.emp || a.name);
+  m.tasks = mergeColl(base && base.tasks, local.tasks || [], remote.tasks || [], t => t.id);
+  m.findings = mergeColl(base && base.findings, local.findings || [], remote.findings || [], f => f.id);
+  // 流水日志：三方并集，按时间排序
+  m.roleLog = (() => {
+    const seen = {}, out = [];
+    [].concat(local.roleLog || [], remote.roleLog || [], (base && base.roleLog) || []).forEach(x => {
+      const k = JSON.stringify(x); if (seen[k]) return; seen[k] = 1; out.push(x);
+    });
+    out.sort((a, b) => String(a.at || '').localeCompare(String(b.at || '')));
+    return out;
+  })();
+  m.deleteLog = (() => {
+    const seen = {}, out = [];
+    [].concat(local.deleteLog || [], remote.deleteLog || [], (base && base.deleteLog) || []).forEach(x => {
+      const k = JSON.stringify(x); if (seen[k]) return; seen[k] = 1; out.push(x);
+    });
+    out.sort((a, b) => String(a.at || '').localeCompare(String(b.at || '')));
+    return out;
+  })();
+  // 权限绑定：逐键合并
+  m.roleBindings = (() => {
+    const b = (base && base.roleBindings) || {}, l = local.roleBindings || {}, r = remote.roleBindings || {}, out = {};
+    Object.keys(r).forEach(k => { out[k] = pickF(b[k], l[k], r[k]); });
+    Object.keys(l).forEach(k => {
+      if (!(k in out) && JSON.stringify(l[k]) !== JSON.stringify(b[k])) out[k] = l[k];
+    });
+    return out;
+  })();
+  m.settings = pickF(base && base.settings, local.settings, remote.settings);
+  m.seq = pickF(base && base.seq, local.seq, remote.seq) || remote.seq || local.seq;
+  return m;
+}
+
 function cloudPush() {
   if (!CLOUD.on) return Promise.resolve(false);
   if (CLOUD.pushing) { CLOUD.pending = true; return Promise.resolve(false); }
@@ -1057,7 +1139,17 @@ function cloudPoll() {
         cloudPush();
         return;
       }
-      CLOUD.rev = j.rev; applyCloudData(j.data);
+      CLOUD.rev = j.rev;
+      // 本机有未推送的改动（推送失败/排队中）→ 与远端做字段级合并，避免后写赢覆盖
+      const base = CLOUD.base;
+      let dirty = false;
+      if (base) { try { dirty = JSON.stringify(D()) !== JSON.stringify(base); } catch (e) { dirty = false; } }
+      if (dirty) {
+        applyCloudData(mergeCloudData(base, D(), j.data));
+        cloudPush();          // 把合并结果回写云端
+      } else {
+        applyCloudData(j.data);
+      }
       render();
     }
   }).catch(() => { /* 下一次轮询重试 */ });
@@ -1105,6 +1197,34 @@ function replyDueLabel(f) {
   return `剩余 ${d} 天`;
 }
 function overdue(f) { return f.status === 'confirmed' && f.replyDue && f.replyDue < todayStr(); }
+
+/* 整改到期汇总：已超期 / 今日到期 / 3 日内到期 */
+function dueBuckets() {
+  const fs = D().findings.filter(f => f.status === 'confirmed' && f.replyDue);
+  const t = todayStr();
+  return {
+    overdue: fs.filter(f => f.replyDue < t).length,
+    today: fs.filter(f => f.replyDue === t).length,
+    soon: fs.filter(f => f.replyDue > t && daysBetween(t, f.replyDue) <= 3).length
+  };
+}
+function dueAlertCard() {
+  const b = dueBuckets();
+  if (!b.overdue && !b.today && !b.soon) return '';
+  const items = [];
+  if (b.overdue) items.push(`<b style="color:#fff;font-size:15px">${b.overdue}</b> 超期`);
+  if (b.today) items.push(`<b style="color:#fff;font-size:15px">${b.today}</b> 今日到期`);
+  if (b.soon) items.push(`<b style="color:#fff;font-size:15px">${b.soon}</b> 3日内到期`);
+  return `<div data-act="goOverdue" style="margin:10px 14px;background:linear-gradient(135deg,#D34848,#B93838);
+    border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;
+    box-shadow:0 4px 14px rgba(211,72,72,.28)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
+      <path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+    <div style="flex:1;color:#fff;font-size:12.5px;font-weight:600;letter-spacing:.2px">
+      整改回复提醒：${items.join(' · ')}</div>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+  </div>`;
+}
 
 function monthCoverage() {
   const m = month();
@@ -1878,9 +1998,24 @@ function renderRecords() {
     { k: 'all', n: '全部' },
     { k: 'pending', n: '待确认' },
     { k: 'confirmed', n: '待回复' },
-    { k: 'replied', n: '已回复' }
+    { k: 'replied', n: '已回复' },
+    { k: 'overdue', n: '超期' },
+    { k: 'dueToday', n: '今日到期' }
   ];
-  const shown = S.filter === 'all' ? list : list.filter(f => f.status === S.filter);
+  const t0 = todayStr();
+  let shown = S.filter === 'all' ? list
+    : S.filter === 'overdue' ? list.filter(overdue)
+    : S.filter === 'dueToday' ? list.filter(f => f.status === 'confirmed' && f.replyDue === t0)
+    : list.filter(f => f.status === S.filter);
+  // 关键字搜索：标题 / 描述 / 车间 / 房间 / 发现人 / 责任人 / 级别
+  const fq = String(S.fq || '').trim().toLowerCase();
+  if (fq) shown = shown.filter(f => {
+    const w = wsOf(f.workshopId) || { name: '' };
+    const r = roomOf(f.workshopId, f.roomId) || { code: '', name: '' };
+    return [f.id, f.title, f.desc, w.name, r.code, r.name, f.foundBy, f.autoOwner,
+      f.reply && f.reply.owner, f.reply && f.reply.measures, (LEVELS[f.level] || {}).name]
+      .some(v => String(v || '').toLowerCase().indexOf(fq) >= 0);
+  });
 
   return `
   <div class="card" style="padding:12px 14px;margin-bottom:2px">
@@ -1894,7 +2029,15 @@ function renderRecords() {
         <span class="tag warn">主要 ${list.filter(f => f.level === 'major').length}</span>
       </div>
     </div>
+    <div class="row" style="gap:7px;margin-top:10px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2" stroke-linecap="round" style="flex:0 0 14px">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input data-sq value="${esc(S.fq || '')}" placeholder="搜索标题 / 房间 / 责任人 / 关键字"
+        style="flex:1;border:none;outline:none;font-family:inherit;font-size:12.5px;color:var(--ink);background:transparent;padding:2px 0">
+      ${S.fq ? `<span class="tiny" data-act="fqClear" style="cursor:pointer;color:var(--pri);font-weight:600;flex:0 0 auto">清除</span>` : ''}
+    </div>
   </div>
+  ${dueAlertCard()}
   <div class="chips" style="display:flex;gap:7px;overflow-x:auto;padding:10px 14px;margin:0 -14px">
     ${chips.map(c => `<button class="chip ${S.filter === c.k ? 'on' : ''}" data-act="filter" data-k="${c.k}"
       style="border:1px solid ${S.filter === c.k ? 'var(--ink)' : 'var(--line)'};background:${S.filter === c.k ? 'var(--ink)' : '#fff'};
@@ -2621,6 +2764,7 @@ function renderStats() {
 
   return `
   ${periodBar}${lineDrop}
+  ${dueAlertCard()}
   <div class="kpi-grid">
     <div class="kpi"><b>${cov.done}/${cov.total}</b><span>${PERIODS[S.period]}车间覆盖</span>
       <i style="background:var(--pri-l);color:var(--pri)">${cov.total ? Math.round(cov.done / cov.total * 100) : 0}%</i></div>
@@ -3905,6 +4049,8 @@ function handleAction(act, t, d) {
     case 'roomView': S.sub.roomId = t.dataset.id; S.page = 'room'; render(); break;
     case 'fdetail': S.sub.findId = t.dataset.id; S.sub.from = S.page; S.page = 'fdetail'; render(); break;
     case 'filter': S.filter = t.dataset.k; render(); break;
+    case 'goOverdue': S.page = 'records'; S.filter = 'overdue'; S.fq = ''; render(); break;
+    case 'fqClear': S.fq = ''; render(); break;
 
     case 'loginSubmit': loginSubmit(); break;
     case 'roleSheet':
@@ -4535,6 +4681,17 @@ function handleAction(act, t, d) {
 
 /* 输入同步 */
 document.addEventListener('input', e => {
+  const sq = e.target.closest('[data-sq]');
+  if (sq) {
+    S.fq = sq.value;
+    clearTimeout(S._sqT);
+    S._sqT = setTimeout(() => {
+      render();
+      const el = document.querySelector('[data-sq]');
+      if (el) { el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch (x) { /* 忽略 */ } }
+    }, 250);
+    return;
+  }
   const f = e.target.closest('[data-f]');
   if (!f || !S.sheet || !S.sheet.draft) return;
   S.sheet.draft[f.dataset.f] = f.value;
@@ -4563,23 +4720,41 @@ document.addEventListener('change', e => {
 });
 
 function compress(file, cb) {
+  // 已足够小（≤200KB 且尺寸未超限）的文件直接原样使用，避免二次有损压缩
+  if (file && file.size && file.size <= 200 * 1024) {
+    const fr0 = new FileReader();
+    fr0.onload = ev => {
+      const probe = new Image();
+      probe.onload = () => {
+        if (Math.max(probe.width, probe.height) <= 1280) { cb(ev.target.result); return; }
+        encode(probe, ev.target.result);
+      };
+      probe.onerror = () => cb('');
+      probe.src = ev.target.result;
+    };
+    fr0.onerror = () => cb('');
+    fr0.readAsDataURL(file);
+    return;
+  }
   const fr = new FileReader();
   fr.onload = ev => {
     const img = new Image();
-    img.onload = () => {
-      const max = 300;
-      const r = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement('canvas');
-      c.width = Math.round(img.width * r);
-      c.height = Math.round(img.height * r);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      cb(c.toDataURL('image/jpeg', 0.62));
-    };
+    img.onload = () => encode(img, ev.target.result);
     img.onerror = () => cb('');
     img.src = ev.target.result;
   };
   fr.onerror = () => cb('');
   fr.readAsDataURL(file);
+  // 压缩编码：证据照片保留可读细节，最长边 1024px / JPEG 0.7
+  function encode(img, src) {
+    const max = 1024;
+    const r = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * r);
+    c.height = Math.round(img.height * r);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    cb(c.toDataURL('image/jpeg', 0.7));
+  }
 }
 
 /* ---------- 导出（Excel） ---------- */
@@ -5019,6 +5194,37 @@ function exportExcel(bounds, label) {
       (TASK_ST[taskStatus(t)] || {}).name || '', findingsOfTask(t.id).length
     ]));
   });
+  // Sheet3：整改时效统计（区间内）
+  const dMap = ownerDeptMap();
+  const fset = data.findings || [];
+  const rep = fset.filter(f => f.status === 'replied' && f.reply && f.reply.at);
+  const odset = fset.filter(overdue);
+  const dayOf = f => { const d0 = (f.confirmAt || f.foundAt || '').slice(0, 10); const d1 = (f.reply.at || '').slice(0, 10); return d0 && d1 ? Math.max(0, daysBetween(d0, d1)) : null; };
+  const statRow = list => {
+    const r = list.filter(f => f.status === 'replied' && f.reply && f.reply.at);
+    const ds = r.map(dayOf).filter(v => v !== null);
+    const onT = r.filter(f => f.replyDue && f.reply.at.slice(0, 10) <= f.replyDue).length;
+    const avg = ds.length ? (ds.reduce((a, b) => a + b, 0) / ds.length) : null;
+    return [list.length, r.length, r.filter(overdue).length,
+      avg === null ? '—' : Math.round(avg * 10) / 10,
+      r.length ? Math.round(onT / r.length * 100) + '%' : '—'];
+  };
+  const head3 = ['整改时效（按区间）', '发现项数', '已回复', '超期未回复', '平均回复天数', '按期回复率'];
+  const rows3 = [xlsRow(head3, 'h'), xlsRow(['全部分布区', ...statRow(fset)])];
+  // 按整改责任人所属部门
+  const depts = {};
+  fset.forEach(f => {
+    const owners = findingOwners(f);
+    const dep = owners.length ? (dMap[owners[0]] || '未指定') : '未指定';
+    (depts[dep] = depts[dep] || []).push(f);
+  });
+  Object.keys(depts).sort().forEach(dep => rows3.push(xlsRow(['部门：' + dep, ...statRow(depts[dep])])));
+  // 按车间
+  (D().workshops || []).forEach(w => {
+    const list = fset.filter(f => f.workshopId === w.id);
+    if (list.length) rows3.push(xlsRow(['车间：' + w.name, ...statRow(list)]));
+  });
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -5029,6 +5235,7 @@ function exportExcel(bounds, label) {
  </Styles>
  <Worksheet ss:Name="发现项明细"><Table>${rows1.join('')}</Table></Worksheet>
  <Worksheet ss:Name="巡检任务汇总"><Table>${rows2.join('')}</Table></Worksheet>
+ <Worksheet ss:Name="整改时效统计"><Table>${rows3.join('')}</Table></Worksheet>
 </Workbook>`.replace(/\n/g, '\r\n');
   const tag = label === '全部数据' || !label ? '' : `_${String(label).replace(/[^\d\-~]/g, '').replace(/~/, '-')}`;
   try {
@@ -5073,6 +5280,8 @@ window.__t = {
   CLOUD_DB, AUTH, authEnabled, authGuard, renderLogin, loginHTML, loginSubmit, doFinishLogin,
   dbReady, dbLoad, dbSave, tryDbBackend, applyCloudData, isSeedLike, localIsCustom, dataSig, seedSig, seed,
   dataStats, histSave, histList, dropCheck, snapMaybe, snapWrite, snapListCloud, snapRestoreDo, openDataProtect,
+  mergeCloudData, mergeColl, dueBuckets, dueAlertCard, compress,
+  todayStr, addDays, daysBetween, persist, overdue,
   snapGet, snapPruneCloud, fmtAt, backupImportPick,
   dataProtectHTML, backupExport, importDo, SNAP, HIST_KEY, stampNow,
   applyRoleBinding, afterLogin, handleAction, doLogout, loginLabel,
