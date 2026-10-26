@@ -2929,7 +2929,7 @@ function renderMe() {
       { act: 'dataProtect', n: '数据保护', d: '历史版本回滚 · 一键快照 · 备份导出导入', show: can('exportAll') },
       { act: 'goAudit', n: '审计追踪', d: '角色变更、房间回复人调整、数据删除留痕', show: can('viewAudit') },
       { act: 'roleSheet', n: '切换角色', d: '巡检人 / 合规管理 / 整改回复人 / 预览', show: true },
-      { act: 'chgPwd', n: '修改密码', d: '旧密码校验后修改 CloudBase 登录密码', show: authEnabled() && !!CLOUD.user },
+      { act: 'chgPwd', n: '修改密码', d: '修改 CloudBase 登录密码（需短信/邮箱验证码，未绑定手机/邮箱请在控制台重置）', show: authEnabled() && !!CLOUD.user },
       { act: 'logout', n: '退出登录', d: authEnabled() && CLOUD.user ? `当前账号 ${loginLabel()}` : '未启用云端登录', show: authEnabled() && !!CLOUD.user }
     ].filter(i => i.show).map((i, ix, arr) => `
       <div class="row" style="justify-content:space-between;padding:13px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer" data-act="${i.act}">
@@ -3719,7 +3719,7 @@ function renderSheet() {
       ${s._err ? `<div class="tiny" style="color:var(--red);line-height:1.7">${esc(s._err)}</div>` : ''}
       ${s._msg ? `<div class="tiny" style="color:#0B6A61;line-height:1.7;margin-top:6px">${esc(s._msg)}</div>` : ''}
       <div class="tiny" style="margin-top:8px;line-height:1.7;color:var(--ink3)">
-        通过旧密码校验身份，无需验证码。修改成功后其他设备的登录会全部失效，需用新密码重新登录。
+        CloudBase 平台强制要求改密前进行短信/邮箱验证码二次验证；账号未绑定手机/邮箱时无法自助修改，需管理员在云开发控制台重置。修改成功后其他设备的登录会全部失效，需用新密码重新登录。
       </div>`,
       `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
        <button class="btn btn-pri" data-act="pwdSubmit" ${s._saving ? 'disabled' : ''}>${s._saving ? '提交中…' : '确认修改'}</button>`);
@@ -3804,7 +3804,7 @@ function renderSheet() {
           '防误删：房间 / 账号 / 任务 / 发现项数量比上一版明显减少时，系统会先弹确认再提交',
           '发现项详情页内置「AI 分析建议」：按产线场景自动生成风险判定、可能原因与整改建议，法规依据可切换中国 GMP / FDA / EU',
           '「分析」页可切换「按产线 / 按部门」两个维度：部门分析按整改责任人所属部门（CMU / CMD / CMF）归纳发现项',
-          '账号管理：新增 / 编辑账号时可选部门（CMU / CMD / CMF）；登录后可在「我的 → 修改密码」用旧密码自助改密，无需验证码'
+          '账号管理：新增 / 编辑账号时可选部门（CMU / CMD / CMF）；修改密码需 CloudBase 短信/邮箱验证码，账号未绑定手机/邮箱时由管理员在云开发控制台「身份认证 → 用户管理」重置'
         ])}
       </div>`,
       '<button class="btn btn-pri" style="flex:1" data-act="sheetClose">我知道了</button>');
@@ -4296,8 +4296,8 @@ function handleAction(act, t, d) {
       }).catch(e => {
         s._saving = false;
         const msg = String((e && e.message) || '');
-        if (/verify|验证码|verification/i.test(msg) || (e && (e.code === 4001))) {
-          s._err = '云端要求验证码二次验证（短信/邮箱通道未配置导致无法接收）。请在云开发控制台「身份认证 → 用户管理」中重置密码，或先配置短信/邮件服务。';
+        if (/verify|验证码|verification/i.test(msg) || (e && (e.code === 4001 || e.code === 5)) || /not.?found/i.test(msg)) {
+          s._err = '云端平台要求改密必须先发送短信/邮箱验证码做二次验证，而当前账号未绑定手机/邮箱（或短信/邮件服务未开通），无法自助修改。请在腾讯云开发控制台「身份认证 → 用户管理」中找到该账号重置密码；或先为账号绑定手机/邮箱并开通服务后再来修改。';
         } else if (/old.?password|invalid_password|4003/i.test(msg)) {
           s._err = '旧密码不正确，请重新输入';
         } else {
