@@ -1406,13 +1406,6 @@ function restAuthApi(method, path, body) {
    密码登录 auth.signIn({ username, password })
    登录态 auth.getCurrentUser() / auth.getLoginState()（视版本可用） */
 const phoneE164 = s => { s = String(s || '').trim(); return /^\+/.test(s) ? s : ('+86 ' + s); };
-const maskPhone = p => {
-  const s = String(p || '').trim().replace(/\s/g, '');
-  const bare = s.replace(/^\+?86/, '');            // 去掉 +86 / 86 国家码
-  if (bare.length >= 11) return bare.slice(0, 3) + '****' + bare.slice(-4);
-  return s.length >= 7 ? s.slice(0, 3) + '****' + s.slice(-4) : s;
-};
-const maskEmail = e => { const s = String(e || '').trim(); const i = s.indexOf('@'); return i > 2 ? s.slice(0, 2) + '***' + s.slice(i) : s; };
 const fmtAuthErr = (e, fallback) => {
   if (!e) return fallback;
   const code = e.code || e.error_code || e.status || '';
@@ -2934,7 +2927,7 @@ function renderMe() {
       { act: 'dataProtect', n: '数据保护', d: '历史版本回滚 · 一键快照 · 备份导出导入', show: can('exportAll') },
       { act: 'goAudit', n: '审计追踪', d: '角色变更、房间回复人调整、数据删除留痕', show: can('viewAudit') },
       { act: 'roleSheet', n: '切换角色', d: '巡检人 / 合规管理 / 整改回复人 / 预览', show: true },
-      { act: 'chgPwd', n: '修改密码', d: '短信 / 邮箱验证码二次验证后修改登录密码', show: authEnabled() && !!CLOUD.user },
+      { act: 'chgPwd', n: '修改密码', d: '输入旧密码验证后自助设置新密码', show: authEnabled() && !!CLOUD.user },
       { act: 'logout', n: '退出登录', d: authEnabled() && CLOUD.user ? `当前账号 ${loginLabel()}` : '未启用云端登录', show: authEnabled() && !!CLOUD.user }
     ].filter(i => i.show).map((i, ix, arr) => `
       <div class="row" style="justify-content:space-between;padding:13px 0;${ix < arr.length - 1 ? 'border-bottom:1px solid #F2F6F8' : ''};cursor:pointer" data-act="${i.act}">
@@ -3706,49 +3699,39 @@ function renderSheet() {
   }
 
   else if (s.type === 'chgPwd') {
-    const d = s.draft, u = CLOUD.user || {};
-    const hasPhone = !!u.phone, hasEmail = !!u.email;
-    const noBind = !hasPhone && !hasEmail;
-    const cd = s._cdAt ? Math.max(0, 60 - Math.floor((Date.now() - s._cdAt) / 1000)) : 0;
-    html = sheetWrap('修改密码', '登录账号 ' + esc(loginLabel()),
-      noBind
-        ? `<div class="tiny" style="line-height:1.9;color:var(--red)">当前账号未绑定手机号或邮箱，无法接收验证码，不能自助修改密码。<br>请先在云开发控制台「身份认证 → 用户管理」为该账号绑定手机/邮箱，或由管理员直接重置密码。</div>`
-        : `
-      <div class="fld">
-        <label>验证码接收方式</label>
-        <div class="row" style="gap:6px">
-          ${hasPhone ? `<span class="tag ${d.opt === 'phone' ? 'pri' : 'gray'}" style="cursor:pointer;padding:6px 12px" data-act="pwdOpt" data-k="phone">手机 ${esc(maskPhone(u.phone))}</span>` : ''}
-          ${hasEmail ? `<span class="tag ${d.opt === 'email' ? 'pri' : 'gray'}" style="cursor:pointer;padding:6px 12px" data-act="pwdOpt" data-k="email">邮箱 ${esc(maskEmail(u.email))}</span>` : ''}
+    const sdkAuth = authObj();
+    if (sdkAuth && typeof sdkAuth.resetPasswordForOld === 'function') {
+      /* SDK 通道（js-sdk 3.6.3+ 提供 resetPasswordForOld）：旧密码 sudo 换令牌 → 免验证码直接改密
+         （SDK 源码实测：POST /v1/user/sudo {password} → sudo_token → PATCH /v1/user/password {sudo_token,new_password}） */
+      html = sheetWrap('修改密码', '登录账号 ' + esc(loginLabel()),
+        `<div class="fld">
+          <label>当前密码</label>
+          <input type="password" data-f="old" autocomplete="current-password" placeholder="输入现在使用的密码">
         </div>
-      </div>
-      <div class="fld">
-        <label>验证码</label>
-        <div class="row" style="gap:8px">
-          <input type="text" data-f="code" value="${esc(d.code || '')}" placeholder="5 分钟内有效" maxlength="8" inputmode="numeric" style="flex:1">
-          <button class="btn btn-line btn-sm" style="flex:0 0 118px" data-act="pwdSendCode" ${cd || s._sending ? 'disabled' : ''}>${s._sending ? '发送中…' : cd ? cd + 's 后重发' : '发送验证码'}</button>
+        <div class="fld">
+          <label>新密码</label>
+          <input type="password" data-f="p1" autocomplete="new-password" placeholder="8-64 位，建议大小写字母 + 数字 + 符号组合">
         </div>
-      </div>
-      <div class="fld">
-        <label>旧密码（当前登录密码）</label>
-        <input type="password" data-f="old" value="" placeholder="请输入当前使用的密码" autocomplete="current-password">
-      </div>
-      <div class="fld">
-        <label>新密码</label>
-        <input type="password" data-f="p1" value="" placeholder="8–64 位，含大小写字母、数字和特殊字符" autocomplete="new-password">
-      </div>
-      <div class="fld">
-        <label>确认新密码</label>
-        <input type="password" data-f="p2" value="" autocomplete="new-password">
-      </div>
-      ${s._err ? `<div class="tiny" style="color:var(--red);line-height:1.7">${esc(s._err)}</div>` : ''}
-      ${s._msg ? `<div class="tiny" style="color:#0B6A61;line-height:1.7;margin-top:6px">${esc(s._msg)}</div>` : ''}
-      <div class="tiny" style="margin-top:8px;line-height:1.7;color:var(--ink3)">
-        验证码由 CloudBase 二次验证发送（5 分钟内有效）。修改成功后其他设备的登录会全部失效，需用新密码重新登录。
-      </div>`,
-      noBind
-        ? `<button class="btn btn-line" style="flex:1" data-act="sheetClose">知道了</button>`
-        : `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
-       <button class="btn btn-pri" data-act="pwdSubmit" ${s._saving ? 'disabled' : ''}>${s._saving ? '提交中…' : '确认修改'}</button>`);
+        <div class="fld">
+          <label>确认新密码</label>
+          <input type="password" data-f="p2" autocomplete="new-password" placeholder="再次输入新密码">
+        </div>
+        <div class="tiny" style="margin-top:8px;line-height:1.8">修改成功后，其他已登录设备将被强制退出，需用新密码重新登录。</div>`,
+        `<button class="btn btn-line" style="flex:0 0 88px" data-act="sheetClose">取消</button>
+         <button class="btn btn-pri" data-act="pwdSubmit">确认修改</button>`);
+    } else {
+      /* REST 兜底通道（SDK 加载失败）：/web 网关 token 与 REST 网关不互通，无法免验证码改密，保留管理员重置指引 */
+      html = sheetWrap('修改密码', '登录账号 ' + esc(loginLabel()),
+        `<div class="tiny" style="line-height:1.9">
+          当前网络未能加载认证组件，暂不支持应用内自助修改密码。密码重置方式：
+          <br>1. 联系系统管理员；
+          <br>2. 管理员打开云开发控制台（tcb.cloud.tencent.com），进入本环境的「身份认证 → 用户管理」；
+          <br>3. 找到对应账号，点击「重置密码」并设置新密码；
+          <br>4. 用原账号名 + 新密码登录即可。
+          <br><br>提示：网络恢复后重新打开应用，即可自助修改密码。
+        </div>`,
+        `<button class="btn btn-pri" style="flex:1" data-act="sheetClose">知道了</button>`);
+    }
   }
 
   else if (s.type === 'dataMgr') {
@@ -3830,7 +3813,7 @@ function renderSheet() {
           '防误删：房间 / 账号 / 任务 / 发现项数量比上一版明显减少时，系统会先弹确认再提交',
           '发现项详情页内置「AI 分析建议」：按产线场景自动生成风险判定、可能原因与整改建议，法规依据可切换中国 GMP / FDA / EU',
           '「分析」页可切换「按产线 / 按部门」两个维度：部门分析按整改责任人所属部门（CMU / CMD / CMF）归纳发现项',
-          '账号管理：新增 / 编辑账号时可选部门（CMU / CMD / CMF）；「我的 → 修改密码」用短信 / 邮箱验证码二次验证后自助改密（账号须先在云开发控制台绑定手机或邮箱）'
+          '账号管理：新增 / 编辑账号时可选部门（CMU / CMD / CMF）；「我的 → 修改密码」支持自助改密——输入旧密码验证后直接设置新密码，无需短信验证码'
         ])}
       </div>`,
       '<button class="btn btn-pri" style="flex:1" data-act="sheetClose">我知道了</button>');
@@ -4296,82 +4279,37 @@ function handleAction(act, t, d) {
 
     case 'chgPwd': {
       if (!(authEnabled() && CLOUD.user)) { toast('请先登录云端账号'); break; }
-      const cu = CLOUD.user;
-      openSheet({ type: 'chgPwd', draft: { opt: cu.phone ? 'phone' : 'email', code: '' } });
+      openSheet({ type: 'chgPwd' });
       break;
     }
-    case 'pwdOpt': {
-      const s = S.sheet;
-      if (!s || s.type !== 'chgPwd') break;
-      s.draft.opt = t.dataset.k === 'email' ? 'email' : 'phone';
-      s._err = ''; s._msg = '';
-      renderSheet();
-      break;
-    }
-    case 'pwdSendCode': {
-      const s = S.sheet;
-      if (!s || s.type !== 'chgPwd' || s._sending) break;
-      if (s._cdAt && Date.now() - s._cdAt < 60 * 1000) break;
-      const opt = s.draft.opt === 'email' ? 'email_code' : 'phone_code';
-      s._err = ''; s._msg = ''; s._sending = true; renderSheet();
-      restAuthApi('POST', 'user/reauthenticate', { verify_opt: opt }).then(() => {
-        s._sending = false; s._cdAt = Date.now();
-        s._msg = '验证码已发送，请查收（5 分钟内有效）';
-        renderSheet();
-        // 倒计时只更新按钮文案，不重绘弹层（重绘会清空已输入的密码）
-        if (s._cdTimer) clearInterval(s._cdTimer);
-        s._cdTimer = setInterval(() => {
-          const btn = document.querySelector('#sheet [data-act="pwdSendCode"]');
-          if (!btn || !S.sheet || S.sheet !== s) { clearInterval(s._cdTimer); s._cdTimer = null; return; }
-          const left = Math.max(0, 60 - Math.floor((Date.now() - s._cdAt) / 1000));
-          if (left <= 0) { clearInterval(s._cdTimer); s._cdTimer = null; btn.disabled = false; btn.textContent = '重新发送'; }
-          else { btn.disabled = true; btn.textContent = left + 's 后重发'; }
-        }, 1000);
-      }).catch(e => {
-        s._sending = false;
-        const raw = (e && (e.code || e.status)) ? `（错误码 ${e.code || e.status}${e && e.message ? '：' + e.message : ''}）` : '';
-        s._err = '发送失败 ' + raw + '。常见原因：① 身份认证未配置短信服务商（需腾讯云短信签名、模板审核通过并在「身份认证 → 登录方式」中完成配置）；② 账号未绑定手机号。请到云开发控制台核对后重试。';
-        renderSheet();
-      });
-      break;
-    }
+
     case 'pwdSubmit': {
-      const s = S.sheet;
-      if (!s || s.type !== 'chgPwd' || s._saving) break;
-      const gv = f => { const el = document.querySelector('#sheet [data-f="' + f + '"]'); return el ? el.value : ''; };
-      const old = String(gv('old') || '');
-      const p1 = String(gv('p1') || '');
-      const p2 = String(gv('p2') || '');
-      const code = String(gv('code') || '').trim();
-      if (!code) { s._err = '请输入短信/邮箱验证码'; renderSheet(); break; }
-      if (!old) { s._err = '请输入旧密码（当前登录密码）'; renderSheet(); break; }
-      if (p1 !== p2) { s._err = '两次输入的新密码不一致'; renderSheet(); break; }
-      if (p1 === old) { s._err = '新密码不能与旧密码相同'; renderSheet(); break; }
-      if (!(p1.length >= 8 && p1.length <= 64 && /[a-z]/.test(p1) && /[A-Z]/.test(p1) && /\d/.test(p1) && /[^A-Za-z0-9]/.test(p1))) {
-        s._err = '密码强度不足：需 8–64 位，包含大写字母、小写字母、数字和特殊字符';
-        renderSheet(); break;
-      }
-      s._err = ''; s._msg = ''; s._saving = true; renderSheet();
-      const body = { old_password: old, new_password: p1, confirm_password: p1, verify_code: code };
-      restAuthApi('PATCH', 'user/password', body).then(() => {
-        closeSheet();
-        toast('密码已修改，请用新密码重新登录');
-        setTimeout(() => doLogout(), 900);
-      }).catch(e => {
-        s._saving = false;
-        const msg = String((e && e.message) || '');
-        if (/code|验证码|verification/i.test(msg) && !/password/i.test(msg)) {
-          s._err = '验证码不正确或已过期，请重新获取（有效期 5 分钟）';
-        } else if ((e && e.code === 4003) || /old.?password|invalid_password/i.test(msg)) {
-          s._err = '旧密码不正确，请重新输入';
-        } else if ((e && e.code === 4005) || /weak.?password|strength/i.test(msg)) {
-          s._err = '密码强度不足：需 8–64 位，包含大写字母、小写字母、数字和特殊字符';
-        } else if ((e && e.code === 5) || /not.?found/i.test(msg)) {
-          s._err = '未找到有效的验证码记录，请点击「发送验证码」重新获取后再提交。';
-        } else {
-          s._err = fmtAuthErr(e, '修改失败：请核对验证码、旧密码与密码要求');
+      if (!(authEnabled() && CLOUD.user)) { toast('请先登录云端账号'); break; }
+      const gv = f => { const n = document.querySelector('[data-f="' + f + '"]'); return n ? n.value : ''; };
+      const oldV = gv('old'), p1 = gv('p1'), p2 = gv('p2');
+      if (!oldV) { toast('请输入当前密码'); break; }
+      if (p1.length < 8 || p1.length > 64) { toast('新密码长度需为 8-64 位'); break; }
+      if (p1 !== p2) { toast('两次输入的新密码不一致'); break; }
+      if (p1 === oldV) { toast('新密码不能与当前密码相同'); break; }
+      const auth = authObj();
+      const btn = document.querySelector('[data-act="pwdSubmit"]');
+      if (!auth || typeof auth.resetPasswordForOld !== 'function') { toast('认证组件不可用，请稍后重试或联系管理员重置'); break; }
+      if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
+      Promise.resolve(auth.resetPasswordForOld({ old_password: oldV, new_password: p1 })).then(r => {
+        if (r && r.error) {
+          if (btn) { btn.disabled = false; btn.textContent = '确认修改'; }
+          const code = String((r.error && (r.error.code || r.error.error_code || r.error.status)) || '');
+          const msg = (r.error && (r.error.message || r.error.error_description)) || '';
+          if (code === '4003' || /invalid_password|invalid_credentials/i.test(msg + ' ' + code)) toast('当前密码不正确，请重新输入');
+          else if (code === '4005' || /weak_password/i.test(msg + ' ' + code)) toast('密码强度不足：需 8-64 位，含大小写字母、数字和特殊字符');
+          else toast(fmtAuthErr(r.error, '修改失败，请稍后重试'));
+          return;
         }
-        renderSheet();
+        closeSheet();
+        toast('密码修改成功，其他设备需用新密码重新登录');
+      }).catch(e => {
+        if (btn) { btn.disabled = false; btn.textContent = '确认修改'; }
+        toast(fmtAuthErr(e, '修改失败，请稍后重试'));
       });
       break;
     }
