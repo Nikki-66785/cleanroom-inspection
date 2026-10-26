@@ -2673,6 +2673,76 @@ function periodCoverage() {
   return { total: ws.length, done: list.filter(c => c.ok).length, list };
 }
 
+/* ---------- 19n 可视化聚合（驾驶舱 / 时效趋势 / 房间健康分） ---------- */
+function weekStarts(n) {
+  const d = new Date(todayStr() + 'T00:00:00');
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7 - (n - 1) * 7);
+  const out = [];
+  for (let i = 0; i < n; i++) { out.push(dateStr(d)); d.setDate(d.getDate() + 7); }
+  return out;
+}
+function lastMonths(n) {
+  const t = todayStr();
+  let y = +t.slice(0, 4), m = +t.slice(5, 7);
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } out.push(yy + '-' + pad(mm)); }
+  return out;
+}
+/* 处理漏斗（口径：当前产线范围全部发现项累计） */
+function funnelData(wsIds) {
+  const fs = D().findings.filter(f => wsIds.indexOf(f.workshopId) >= 0);
+  return { total: fs.length,
+    replied: fs.filter(f => f.status === 'replied').length,
+    pending: fs.filter(f => f.status === 'pending').length,
+    confirmed: fs.filter(f => f.status === 'confirmed').length,
+    od: fs.filter(overdue).length };
+}
+/* 近 n 周发现项走势（按登记周） */
+function weekTrend(wsIds, weeks) {
+  const starts = weekStarts(weeks);
+  const counts = starts.map((s, i) => {
+    const end = dateStr(new Date(new Date(s + 'T00:00:00').getTime() + 6 * 86400000));
+    return D().findings.filter(f => wsIds.indexOf(f.workshopId) >= 0 &&
+      (f.foundAt || '').slice(0, 10) >= s && (f.foundAt || '').slice(0, 10) <= end).length;
+  });
+  return { starts, counts };
+}
+/* 近 n 个月整改时效：当月回复项的平均回复天数与按期回复率 */
+function replyTrend(wsIds, months) {
+  return lastMonths(months).map(m => {
+    const fs = D().findings.filter(f => f.status === 'replied' && f.reply &&
+      wsIds.indexOf(f.workshopId) >= 0 && (f.reply.at || '').slice(0, 7) === m);
+    const days = fs.map(f => Math.max(0, daysBetween((f.foundAt || '').slice(0, 10), (f.reply.at || '').slice(0, 10))));
+    const onTime = fs.filter(f => f.replyDue && f.reply.at.slice(0, 10) <= f.replyDue).length;
+    return { m, n: fs.length,
+      avg: days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null,
+      rate: fs.length ? Math.round(onTime / fs.length * 100) : null };
+  });
+}
+/* 房间健康分（0-100）：严重项 40 + 超期 30 + 回复时效 20 + 本月覆盖 10，只列有发现项的房间 */
+function roomHealthList(wsIds, cov) {
+  const rows = [];
+  scopeWs().forEach(w => (w.rooms || []).forEach(r => {
+    const rf = D().findings.filter(f => f.workshopId === w.id && f.roomId === r.id);
+    if (!rf.length) return;
+    const crit = rf.filter(f => f.level === 'critical').length;
+    const major = rf.filter(f => f.level === 'major').length;
+    const minor = rf.filter(f => f.level === 'minor').length;
+    const od = rf.filter(overdue).length;
+    const ds = rf.filter(f => f.status === 'replied' && f.reply)
+      .map(f => Math.max(0, daysBetween((f.foundAt || '').slice(0, 10), (f.reply.at || '').slice(0, 10))));
+    const avg = ds.length ? Math.round(ds.reduce((a, b) => a + b, 0) / ds.length * 10) / 10 : null;
+    const c = cov.list.find(x => x.w.id === w.id) || {};
+    const sSev = Math.max(0, 40 - crit * 20 - major * 8 - minor * 2);
+    const sOd = Math.max(0, 30 - od * 15);
+    const sTim = avg == null ? 14 : Math.max(0, 20 - Math.max(0, avg - 2) * 3);
+    const sCov = c.ok ? 10 : c.t ? 5 : 0;
+    rows.push({ w, r, n: rf.length, crit, od, avg,
+      score: Math.max(0, Math.min(100, Math.round(sSev + sOd + sTim + sCov))) });
+  }));
+  return rows.sort((a, b) => a.score - b.score || b.od - a.od);
+}
+
 function renderStats() {
   if (!S.period) S.period = 'month';
   const lines = lineList();
@@ -2700,6 +2770,89 @@ function renderStats() {
   const overdueCnt = fs.filter(overdue).length;
   const onTime = replied.filter(f => f.reply && f.replyDue && f.reply.at.slice(0, 10) <= f.replyDue).length;
   const onTimeRate = replied.length ? Math.round(onTime / replied.length * 100) : 100;
+
+  /* 19n 可视化聚合 */
+  const fd = funnelData(wsIds);
+  const tr = weekTrend(wsIds, 12);
+  const rt = replyTrend(wsIds, 6);
+  const hc = roomHealthList(wsIds, cov);
+  const healthColor = s => s >= 80 ? '#0F8378' : s >= 60 ? '#E0A03A' : '#D33F3F';
+  const healthTrack = s => s >= 80 ? '#E7F4F0' : s >= 60 ? '#FBF3E4' : '#FBECEC';
+
+  const vizFunnel = `
+  <div class="sec-title"><h3>处理漏斗</h3><span>累计 ${fd.total} 项 · 当前产线口径</span></div>
+  <div class="card">
+    ${[['累计登记', fd.total, '#0F8378'], ['已回复关闭', fd.replied, '#4CA795'], ['待合规确认', fd.pending, '#E0A03A'], ['待整改回复', fd.confirmed, '#E0A03A'], ['超期未回复', fd.od, '#D33F3F']]
+      .map(x => `
+      <div class="bar-row">
+        <span class="bl" style="width:96px;flex:0 0 96px">${x[0]}</span>
+        <div class="bar-track"><i style="width:${Math.round(x[1] / Math.max(1, fd.total) * 100)}%;background:${x[2]}"></i></div>
+        <span class="bv" style="${x[0] === '超期未回复' && x[1] ? 'color:#D33F3F;font-weight:700' : ''}">${x[1]}</span>
+      </div>`).join('')}
+    <div class="tiny" style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;line-height:1.6">
+      流转口径：登记 → 合规确认 → 整改回复关闭；「待整改回复」中已超期 <b style="color:#D33F3F">${fd.od}</b> 项，点击下方「超期」可跟进。</div>
+  </div>`;
+
+  const trMax = Math.max(1, ...tr.counts);
+  const trX = i => 40 + i * (552 / 11);
+  const trY = v => 100 - Math.round(v / trMax * 76);
+  const vizTrend = `
+  <div class="sec-title"><h3>近 12 周发现项走势</h3><span>按登记周</span></div>
+  <div class="card">
+    <svg viewBox="0 0 600 124" style="width:100%;display:block" role="img" aria-label="近12周发现项数量折线图">
+      <line x1="40" y1="8" x2="40" y2="100" stroke="#E4EBEE" stroke-width="1"/>
+      <line x1="40" y1="100" x2="592" y2="100" stroke="#E4EBEE" stroke-width="1"/>
+      <polyline points="${tr.counts.map((v, i) => trX(i) + ',' + trY(v)).join(' ')}" fill="none" stroke="#0F8378" stroke-width="2" stroke-linejoin="round"/>
+      ${tr.counts.map((v, i) => `<circle cx="${trX(i)}" cy="${trY(v)}" r="2.6" fill="#0F8378"/>
+        <text x="${trX(i)}" y="${trY(v) - 7}" font-size="9.5" fill="#7C9590" text-anchor="middle">${v}</text>`).join('')}
+      <text x="40" y="117" font-size="9.5" fill="#9AAAB8">${tr.starts[0].slice(5)}</text>
+      <text x="592" y="117" font-size="9.5" fill="#9AAAB8" text-anchor="end">本周</text>
+    </svg>
+  </div>`;
+
+  const rtDays = rt.map(x => x.avg == null ? 0 : x.avg);
+  const rtDMax = Math.max(5, ...rtDays) * 1.15;
+  const rtX = i => 46 + i * (540 / 5);
+  const rtDy = v => 122 - Math.round(v / rtDMax * 94);
+  const rtRy = v => 122 - Math.round(v / 100 * 94);
+  const vizReply = `
+  <div class="sec-title"><h3>整改时效趋势</h3><span>近 6 个月 · 按回复月份</span></div>
+  <div class="card">
+    <svg viewBox="0 0 640 156" style="width:100%;display:block" role="img" aria-label="近6个月平均回复天数与按期回复率折线图">
+      <line x1="46" y1="10" x2="46" y2="122" stroke="#E4EBEE" stroke-width="1"/>
+      <line x1="46" y1="122" x2="620" y2="122" stroke="#E4EBEE" stroke-width="1"/>
+      <line x1="46" y1="${rtRy(90)}" x2="620" y2="${rtRy(90)}" stroke="#B4B2A9" stroke-width="1" stroke-dasharray="5 4"/>
+      <text x="624" y="${rtRy(90) + 3}" font-size="9.5" fill="#888780">目标90%</text>
+      <polyline points="${rt.map((x, i) => rtX(i) + ',' + rtDy(x.avg == null ? 0 : x.avg)).join(' ')}" fill="none" stroke="#0F8378" stroke-width="2" stroke-linejoin="round"/>
+      ${rt.map((x, i) => `<circle cx="${rtX(i)}" cy="${rtDy(x.avg == null ? 0 : x.avg)}" r="2.6" fill="#0F8378"/>
+        <text x="${rtX(i)}" y="${rtDy(x.avg == null ? 0 : x.avg) - 7}" font-size="9.5" fill="#7C9590" text-anchor="middle">${x.avg == null ? '—' : x.avg + '天'}</text>`).join('')}
+      <polyline points="${rt.map((x, i) => x.rate == null ? '' : rtX(i) + ',' + rtRy(x.rate)).join(' ')}" fill="none" stroke="#5B8DC9" stroke-width="2" stroke-linejoin="round"/>
+      ${rt.map((x, i) => x.rate == null ? '' : `<circle cx="${rtX(i)}" cy="${rtRy(x.rate)}" r="2.6" fill="#5B8DC9"/>
+        <text x="${rtX(i)}" y="${rtRy(x.rate) + 13}" font-size="9.5" fill="#5B8DC9" text-anchor="middle">${x.rate}%</text>`).join('')}
+      ${rt.map((x, i) => `<text x="${rtX(i)}" y="140" font-size="9.5" fill="#9AAAB8" text-anchor="middle">${x.m.slice(5)}月</text>`).join('')}
+    </svg>
+    <div class="row" style="gap:14px;font-size:11px;color:var(--ink3);margin-top:4px">
+      <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#0F8378;margin-right:4px"></i>平均回复天数（越低越好）</span>
+      <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#5B8DC9;margin-right:4px"></i>按期回复率（越高越好）</span>
+    </div>
+    <div class="tiny" style="margin-top:6px;line-height:1.6">当月无回复记录的月份显示「—」。数据与导出 Excel 的「整改时效统计」同源。</div>
+  </div>`;
+
+  const vizHealth = `
+  <div class="sec-title"><h3>房间健康分</h3><span>严重项40 · 超期30 · 时效20 · 覆盖10</span></div>
+  <div class="card" style="padding:10px 14px">
+    ${hc.length ? hc.map(x => `
+      <div class="row" data-act="healthRoom" data-code="${esc(x.r.code)}" style="justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #F2F6F8;cursor:pointer">
+        <span class="bl" style="width:132px;flex:0 0 132px;cursor:pointer">
+          ${esc(x.w.name.slice(0, 6))} · ${esc(x.r.code)}${x.crit ? `<b style="color:#D33F3F;font-weight:600"> · 严重${x.crit}</b>` : ''}${x.od ? `<b style="color:#D33F3F;font-weight:600"> · 超期${x.od}</b>` : ''}
+        </span>
+        <div class="bar-track" style="flex:1;background:${healthTrack(x.score)}"><i style="width:${x.score}%;background:${healthColor(x.score)}"></i></div>
+        <span class="bv" style="color:${healthColor(x.score)};font-weight:700">${x.score}</span>
+      </div>`).join('')
+    : `<div class="tiny" style="padding:6px 0;line-height:1.7">当前产线范围内暂无登记过发现项的房间；登记后即可在此查看健康分排行。</div>`}
+    ${hc.length ? `<div class="tiny" style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;line-height:1.6">
+      得分越低风险越高：<b style="color:#0F8378">≥80 良好</b> · <b style="color:#B87715">60-79 关注</b> · <b style="color:#D33F3F">&lt;60 须整改</b>。点击行可跳转记录页查看该房间全部发现项。</div>` : ''}
+  </div>`;
 
   const colors = { critical: '#D33F3F', major: '#E0A03A', minor: '#5B8DC9', advice: '#9AAAB8' };
   const R = 50, C = 2 * Math.PI * R;
@@ -2774,6 +2927,9 @@ function renderStats() {
       <i style="background:var(--green-l);color:var(--green)">${onTime}/${replied.length}</i></div>
   </div>
 
+  ${vizFunnel}
+  ${vizTrend}
+
   <div class="sec-title"><h3>发现项级别分布</h3><span>${PERIODS[S.period]}${(S.lines || []).length ? ' · ' + esc(lineSelLabel()) : ''}</span></div>
   <div class="card">
     <div class="row" style="gap:16px">
@@ -2825,6 +2981,8 @@ function renderStats() {
       </div>`).join('')}
   </div>
 
+  ${vizReply}
+
   <div class="sec-title"><h3>${PERIODS[S.period]}车间巡检覆盖</h3><span>${cov.done}/${cov.total}</span></div>
   <div class="card" style="padding:6px 14px">
     ${cov.list.map(c => `
@@ -2834,6 +2992,8 @@ function renderStats() {
           ${c.ok ? '已巡检' : c.t ? TASK_ST[taskStatus(c.t)].name : '未安排'}</span>
       </div>`).join('')}
   </div>
+
+  ${vizHealth}
 
   ${can('exportAll') ? `
   <div class="row" style="gap:9px;margin-top:14px">
@@ -4059,6 +4219,7 @@ function handleAction(act, t, d) {
     case 'fdetail': S.sub.findId = t.dataset.id; S.sub.from = S.page; S.page = 'fdetail'; render(); break;
     case 'filter': S.filter = t.dataset.k; render(); break;
     case 'goOverdue': S.page = 'records'; S.filter = 'overdue'; S.fq = ''; render(); break;
+    case 'healthRoom': S.page = 'records'; S.filter = 'all'; S.fq = t.dataset.code; render(); break;
     case 'fqClear': S.fq = ''; render(); break;
 
     case 'loginSubmit': loginSubmit(); break;
