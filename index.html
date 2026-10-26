@@ -4329,12 +4329,8 @@ function handleAction(act, t, d) {
         }, 1000);
       }).catch(e => {
         s._sending = false;
-        const msg = String((e && e.message) || '');
-        if ((e && (e.code === 5 || e.code === 4001)) || /not.?found|not bound|未绑定/i.test(msg)) {
-          s._err = '发送失败：账号未绑定' + (opt === 'email_code' ? '邮箱' : '手机号') + '，或该通道服务未开通。请在云开发控制台「身份认证 → 用户管理」中补充绑定后重试。';
-        } else {
-          s._err = fmtAuthErr(e, '验证码发送失败，请稍后重试');
-        }
+        const raw = (e && (e.code || e.status)) ? `（错误码 ${e.code || e.status}${e && e.message ? '：' + e.message : ''}）` : '';
+        s._err = '发送失败 ' + raw + '。常见原因：① 身份认证未配置短信服务商（需腾讯云短信签名、模板审核通过并在「身份认证 → 登录方式」中完成配置）；② 账号未绑定手机号。请到云开发控制台核对后重试。';
         renderSheet();
       });
       break;
